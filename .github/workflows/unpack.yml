@@ -13,8 +13,8 @@ jobs:
 
     - name: Unzip UDAC project
       run: |
-        echo "Unpacking udac_project.zip..."
-        unzip -o udac_project.zip -d .
+        echo "Unpacking UDAC_App_final.zip..."
+        unzip -o UDAC_App_final.zip -d .
         echo "Project tree after unzip:"
         ls -R
 
