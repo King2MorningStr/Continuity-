@@ -1,39 +1,51 @@
-name: UDAC Build Pipeline
+name: Build UDAC Android APK
 
 on:
   workflow_dispatch:
 
 jobs:
-  unpack_and_build:
+  build-android:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Unzip UDAC project
+    - name: Set up Java 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v4
+
+    - name: Unpack UDAC project zip
       run: |
-        echo "Unpacking UDAC_App_final.zip..."
         unzip -o UDAC_App_final.zip -d .
         echo "Project tree after unzip:"
         ls -R
 
-    - name: Install Briefcase + Build Tools
+    - name: Make Gradle wrapper executable
       run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-pip python3-setuptools git unzip openjdk-17-jdk
-        pip install --upgrade pip
-        pip install briefcase
+        cd dimensional_cortex/android/gradle
+        chmod +x gradlew || true
+        ls
 
-    - name: Build Android APK
+    - name: Build debug APK with Gradle
       run: |
-        echo "Starting Android build..."
-        briefcase create android
-        briefcase build android
-        briefcase package android
+        cd dimensional_cortex/android/gradle
+        ./gradlew assembleDebug --stacktrace --no-daemon
 
-    - name: Upload APK
+    - name: List generated APKs
+      run: |
+        echo "APK files found:"
+        find dimensional_cortex/android/gradle -name "*.apk" -print || echo "No APKs found"
+
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: udac-apk
-        path: '*/android/*.apk'
+        name: udac-debug-apk
+        path: |
+          dimensional_cortex/android/gradle/**/build/outputs/**/*.apk
+        if-no-files-found: error
