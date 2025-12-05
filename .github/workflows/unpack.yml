@@ -1,0 +1,39 @@
+name: UDAC Build Pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+  unpack_and_build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Unzip UDAC project
+      run: |
+        echo "Unpacking udac_project.zip..."
+        unzip -o udac_project.zip -d .
+        echo "Project tree after unzip:"
+        ls -R
+
+    - name: Install Briefcase + Build Tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-pip python3-setuptools git unzip openjdk-17-jdk
+        pip install --upgrade pip
+        pip install briefcase
+
+    - name: Build Android APK
+      run: |
+        echo "Starting Android build..."
+        briefcase create android
+        briefcase build android
+        briefcase package android
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: udac-apk
+        path: '*/android/*.apk'
