@@ -22,7 +22,7 @@ jobs:
 
     - name: Unpack UDAC project zip
       run: |
-        unzip -o UDAC_App_final.zip -d .
+        unzip -o UDAC_App_persistent_icon_keyboard.zip -d .
         echo "Project tree after unzip:"
         ls -R
 
