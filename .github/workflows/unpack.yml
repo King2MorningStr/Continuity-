@@ -22,7 +22,7 @@ jobs:
 
     - name: Unpack UDAC project zip
       run: |
-        unzip -o UDAC_FULL_PATCHED.zip -d .
+        unzip -o UDAC_REPAIRED_FULL.zip -d .
         echo "Project tree after unzip:"
         ls -R
 
