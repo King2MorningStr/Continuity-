@@ -22,7 +22,7 @@ jobs:
 
     - name: Unpack UDAC project zip
       run: |
-        unzip -o UDAC_LOCAL_ONLY_DEV.zip -d .
+        unzip -o UDAC_LOCAL_ONLY_FIXED.zip -d .
         echo "Project tree after unzip:"
         ls -R
 
