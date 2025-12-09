@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- UDAC Invisible Input Method Configuration -->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity=""
+    android:isDefault="true">
+
+    <!--
+    This defines an invisible keyboard that:
+    - Has no UI
+    - Supports all text types
+    - Can inject text programmatically
+    - Is indistinguishable from real user input
+    -->
+
+    <subtype
+        android:imeSubtypeMode="keyboard"
+        android:isAuxiliary="false"
+        android:overridesImplicitlyEnabledSubtype="true"
+        android:imeSubtypeLocale="en_US"
+        android:label="UDAC Continuity" />
+
+</input-method>
