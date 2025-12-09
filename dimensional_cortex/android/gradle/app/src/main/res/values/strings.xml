@@ -1,5 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="formal_name">UDAC – Continuity Engine</string>
-    <string name="app_name">udac_app</string>
-<string name="udac_service_description">UDAC captures chats across apps to provide continuity with your permission.</string></resources>

@@ -1,4 +1,0 @@
-# Generated 2025-12-04 08:03:38.491149
-toga-core==0.5.2
-toga-android==0.5.2
-platformdirs
