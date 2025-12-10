@@ -55,7 +55,7 @@ jobs:
         fi
         
         echo "Extracting: $ZIP_FILE"
-        unzip -o "$ZIP_FILE"
+        unzip -o "UDAC_V5.3_WITH_WORKFLOW.zip"
         
         echo ""
         echo "=== Structure after unzip ==="
