@@ -20,21 +20,42 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    # ═══════════════════════════════════════════════════════════════
+    # CRITICAL: Python must be set up for Chaquopy to work!
+    # ═══════════════════════════════════════════════════════════════
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install Python dependencies
+      run: |
+        python --version
+        pip install --upgrade pip
+        pip install platformdirs
+        echo "Python setup complete"
+
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
 
+    - name: Accept Android SDK Licenses
+      run: |
+        yes | sdkmanager --licenses || true
+        sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;26.1.10909125"
+
     - name: Unpack UDAC project zip
       run: |
-        ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" -type f | head -1)
+        # Find the zip file
+        ZIP_FILE=$(find . -maxdepth 1 -name "UDAC*.zip" -type f | head -1)
         
         if [ -z "$ZIP_FILE" ]; then
-          echo "ERROR: No zip file found!"
+          echo "ERROR: No UDAC zip file found!"
           ls -la
           exit 1
         fi
         
         echo "Extracting: $ZIP_FILE"
-        unzip -o "UDAC_V5.2_STABLE.zip"
+        unzip -o "$ZIP_FILE"
         
         echo ""
         echo "=== Structure after unzip ==="
@@ -45,12 +66,60 @@ jobs:
           find . -name "gradlew" -type f
           exit 1
         fi
+        
+        echo ""
+        echo "=== Python source files ==="
+        find dimensional_cortex -name "*.py" | head -20
+
+    - name: Verify Chaquopy configuration
+      run: |
+        echo "=== Checking build.gradle for Chaquopy ==="
+        cat dimensional_cortex/android/gradle/build.gradle
+        echo ""
+        echo "=== Checking app/build.gradle ==="
+        cat dimensional_cortex/android/gradle/app/build.gradle
+        echo ""
+        echo "=== Checking requirements.txt ==="
+        cat dimensional_cortex/android/gradle/app/requirements.txt || echo "No requirements.txt"
 
     - name: Build debug APK
       run: |
         cd dimensional_cortex/android/gradle
         chmod +x gradlew
-        ./gradlew assembleDebug --stacktrace --no-daemon
+        
+        # Set ANDROID_HOME if not set
+        export ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
+        export PATH="$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools:$PATH"
+        
+        echo "ANDROID_HOME: $ANDROID_HOME"
+        echo "Python: $(which python)"
+        echo "Python version: $(python --version)"
+        
+        # Build with Chaquopy
+        ./gradlew assembleDebug --stacktrace --info 2>&1 | tee build.log
+        
+        # Check if Chaquopy ran
+        echo ""
+        echo "=== Checking for Chaquopy in build log ==="
+        grep -i "chaquopy" build.log || echo "No Chaquopy mentions found"
+        grep -i "python" build.log | head -20 || echo "No Python mentions found"
+
+    - name: Verify APK contents
+      run: |
+        APK_PATH=$(find dimensional_cortex/android/gradle -name "*.apk" | head -1)
+        if [ -n "$APK_PATH" ]; then
+          echo "APK found: $APK_PATH"
+          echo ""
+          echo "=== APK contents (checking for Python) ==="
+          unzip -l "$APK_PATH" | grep -E "(chaquopy|python|\.py)" | head -30 || echo "No Python files found in APK!"
+          echo ""
+          echo "=== APK lib folder ==="
+          unzip -l "$APK_PATH" | grep "lib/" | head -20
+        else
+          echo "ERROR: No APK found!"
+          find dimensional_cortex -name "*.apk"
+          exit 1
+        fi
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
@@ -58,3 +127,11 @@ jobs:
         name: udac-debug-apk
         path: dimensional_cortex/android/gradle/app/build/outputs/apk/**/*.apk
         if-no-files-found: error
+
+    - name: Upload build log
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: build-log
+        path: dimensional_cortex/android/gradle/build.log
+        if-no-files-found: ignore
