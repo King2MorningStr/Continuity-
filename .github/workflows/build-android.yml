@@ -34,7 +34,7 @@ jobs:
         fi
         
         echo "Extracting: $ZIP_FILE"
-        unzip -o "UDAC_V5.1_INJECTION.zip"
+        unzip -o "UDAC_V5.2_STABLE.zip"
         
         echo ""
         echo "=== Structure after unzip ==="
