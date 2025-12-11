@@ -1,0 +1,47 @@
+name: Android Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install BeeWare Briefcase
+      run: |
+        pip install briefcase
+
+    - name: Create Android App
+      # Briefcase might prompt for Android SDK license acceptance.
+      # Using --no-input to avoid hanging.
+      # Note: Briefcase typically handles Android SDK setup automatically.
+      # If explicit license acceptance is needed, it might require a more complex setup,
+      # but --no-input is the standard way to fail fast if interaction is required.
+      run: |
+        briefcase create android --no-input
+
+    - name: Build Android App
+      run: |
+        briefcase build android --no-input
+
+    - name: Package Android App
+      run: |
+        briefcase package android --no-input
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-app
+        path: dist/*.aab
+        if-no-files-found: warn
