@@ -2,9 +2,9 @@ name: Android Build
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ feature/dimensional-backend-integration-7678868902872701377 ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ feature/dimensional-backend-integration-7678868902872701377 ]
 
 jobs:
   build:
