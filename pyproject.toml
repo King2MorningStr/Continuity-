@@ -1,0 +1,49 @@
+[tool.briefcase]
+project_name = "UDAC"
+bundle = "com.dimensional_cortex"
+version = "0.0.1"
+url = "https://example.com/udac"
+license = "Proprietary"
+author = "Dimensional Cortex"
+author_email = "info@dimensionalcortex.com"
+
+[tool.briefcase.app.udac]
+formal_name = "UDAC"
+description = "AI browser with its own brain"
+long_description = "UDAC is an AI browser that fuses continuity and injects it into platform web UIs."
+sources = ["src/dimensional_cortex"]
+test_sources = ["tests"]
+
+[tool.briefcase.app.udac.macOS]
+universal_build = true
+requires = [
+    "toga-cocoa>=0.3.0",
+    "std-nslog>=1.0.0",
+]
+
+[tool.briefcase.app.udac.linux]
+requires = [
+    "toga-gtk>=0.3.0",
+]
+
+[tool.briefcase.app.udac.windows]
+requires = [
+    "toga-winforms>=0.3.0",
+]
+
+# Mobile deployments
+[tool.briefcase.app.udac.iOS]
+requires = [
+    "toga-iOS>=0.3.0",
+    "std-nslog>=1.0.0",
+]
+
+[tool.briefcase.app.udac.android]
+requires = [
+    "toga-android>=0.3.0",
+]
+
+[tool.briefcase.app.udac.web]
+requires = [
+    "toga-web>=0.3.0",
+]
