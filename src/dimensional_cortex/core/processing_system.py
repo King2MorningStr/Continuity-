@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
 """
-Standalone Dimensional Processing Module (PERFECTED)
-===================================================
+Dimensional Processing System
+=============================
 
-This script is the "PERFECTED" version of the "Conscious Mind."
+This module contains the Crystal Memory System and Governance Engine.
 
 It implements:
 1.  **8-Point Facets:** Facets now have 8 "flicker" points.
@@ -26,13 +25,13 @@ from typing import Dict, List, Optional, Any, Tuple, Set, ForwardRef
 from dataclasses import dataclass, field
 from collections import defaultdict
 from enum import Enum
-from concurrent.futures import ThreadPoolExecutor  # ADD THIS LINE
+from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
-# --- PERFECTION: Added ForwardRef for 'Crystal' type hint ---
+
 CrystalRef = ForwardRef('Crystal')
 
 # ============================================================================
-# 1. CORE DATA STRUCTURES (From memory_domain.py)
+# 1. CORE DATA STRUCTURES
 # ============================================================================
 
 class CrystalLevel(Enum):
@@ -42,7 +41,6 @@ class CrystalLevel(Enum):
     FULL_CONCEPT = 3
     QUASI = 4
 
-# --- PERFECTION: Added FacetState for non-destructive decay ---
 class FacetState(Enum):
     """Non-destructive state for Ghost Relic system"""
     ACTIVE = "ACTIVE"
@@ -60,10 +58,9 @@ class CrystalFacet:
     access_count: int = 0
     last_accessed: float = field(default_factory=time.time)
     
-    # --- PERFECTION: Added state for non-destructive decay ---
     state: FacetState = FacetState.ACTIVE
     
-    # --- PERFECTION: Your "8 points per facet" ---
+    # --- 8 points per facet ---
     resonance: float = field(default_factory=lambda: random.uniform(0, 1))
     sensitivity: float = field(default_factory=lambda: random.uniform(0, 1))
     abstractness: float = field(default_factory=lambda: random.uniform(0, 1))
@@ -147,7 +144,6 @@ class Crystal:
     creation_time: float = field(default_factory=time.time)
     last_used: float = field(default_factory=time.time)
     
-    # --- PERFECTION: Type hint for recursive QUASI crystals ---
     internal_layers: List[CrystalRef] = field(default_factory=list)
 
     def add_facet(self, role: str, content: Any, confidence: float = 0.5) -> CrystalFacet:
@@ -173,7 +169,6 @@ class Crystal:
     def get_facet_by_role(self, role: str) -> Optional[CrystalFacet]:
         """Get an active facet by its role"""
         for facet in self.facets.values():
-            # --- PERFECTION: Only return ACTIVE facets ---
             if facet.role == role and facet.state == FacetState.ACTIVE:
                 return facet
         return None
@@ -183,7 +178,7 @@ class Crystal:
         Check if crystal can evolve to next level with adaptive contextual criteria.
         High-impact scenarios accelerate evolution.
         """
-        # --- PERFECTION: Count only *external* facets for evolution ---
+        # Count only *external* facets for evolution
         external_facets = [f for f in self.facets.values() if not f.role.startswith("INTERNAL_LAW")]
         
         # Contextual modifiers
@@ -210,7 +205,6 @@ class Crystal:
             return len(external_facets) >= 5 and effective_usage >= 25
         
         elif self.level == CrystalLevel.FULL_CONCEPT:
-            # --- PERFECTION: Your 8-facet QUASI rule with adaptive threshold ---
             # Evolve to QUASI: 8+ external facets, 50+ uses (accelerated under stress)
             return len(external_facets) >= 8 and effective_usage >= 50
         
@@ -230,13 +224,11 @@ class Crystal:
         elif self.level == CrystalLevel.FULL_CONCEPT:
             self.level = CrystalLevel.QUASI
             print(f"  ✨ QUASI EVOLUTION: {self.concept} now internalizing physics...")
-            # --- PERFECTION: Auto-generate the 8 internal law facets ---
             self._generate_internal_laws()
             return True
         
         return False
 
-    # --- PERFECTION: New method to generate 8 internal laws ---
     def _generate_internal_laws(self):
         """Auto-generates the 8 internal law facets"""
         laws = [
@@ -261,7 +253,6 @@ class Crystal:
                 law_facet.complexity = 1.0 # Recursion is complex
                 law_facet.coherence = 0.8
 
-    # --- PERFECTION: New method for QUASI self-governance ---
     def apply_internal_governance(self, data: Dict) -> Dict[str, Any]:
         """
         Used *only* by QUASI crystals to govern themselves by
@@ -271,10 +262,6 @@ class Crystal:
             return {"law": "error", "outcome": "negative", "detail": "Not a QUASI crystal"}
         
         print(f"  🧠 QUASI Self-Governance: '{self.concept}' is governing itself.")
-        
-        # Simple simulation:
-        # We find the "strongest" law facet based on the input data
-        # (A full model would be much more complex)
         
         threat = data.get('threat_level', 0)
         strongest_law = "ENERGY" # Default
@@ -308,7 +295,6 @@ class Crystal:
             "energy_change": law_facet.potential - law_facet.stability
         }
 
-    # --- PERFECTION: New method for QUASI recursion ---
     def add_internal_crystal(self, crystal: 'Crystal'):
         """
         A QUASI-level crystal can 'hold' other crystals,
@@ -335,7 +321,6 @@ class Crystal:
             if facet.state == FacetState.RELIC:
                 continue
             
-            # --- PERFECTION: Your "Energy Law" ---
             # Data is reallocated, not destroyed
             if governance_result['outcome'] == 'positive':
                 facet.strengthen(0.05) # Reallocate energy to this facet
@@ -348,7 +333,7 @@ class Crystal:
 
 
 # ============================================================================
-# 2. CORE MEMORY MANAGER (From memory_domain.py)
+# 2. CORE MEMORY MANAGER
 # ============================================================================
 
 class CrystalMemorySystem:
@@ -356,7 +341,6 @@ class CrystalMemorySystem:
     
     def __init__(self, governance_engine: 'GovernanceEngine'):
         self.crystals: Dict[str, Crystal] = {}
-        # --- PERFECTION: System now requires a governance engine ---
         self.governance = governance_engine
         self.total_crystals_created = 0
         self.total_evolutions = 0
@@ -385,7 +369,6 @@ class CrystalMemorySystem:
         )
         
         if initial_content:
-            # --- PERFECTION: Pass 'action' to governance ---
             facet = crystal.add_facet('definition', initial_content, confidence=0.7)
             gov_result = self.governance.apply_law(crystal, {}, action="add_facet")
             facet.strengthen(gov_result.get('energy_change', 0.1))
@@ -401,7 +384,6 @@ class CrystalMemorySystem:
         if crystal is None:
             return None
         
-        # --- PERFECTION: Pass 'action' and 'data' to governance ---
         gov_result = self.governance.apply_law(crystal, data, action="use")
         
         crystal.use(gov_result, action="use")
@@ -440,7 +422,7 @@ class CrystalMemorySystem:
 
         self.pathway_history[tuple(sorted((concept1, concept2)))] += 1
         
-    def decay_all(self):                           # ← 4 spaces (class method)
+    def decay_all(self):
         """DIMENSIONAL: Apply decay to all facets in parallel"""
         from concurrent.futures import ThreadPoolExecutor
         
@@ -450,15 +432,15 @@ class CrystalMemorySystem:
             all_facets.extend(crystal.facets.values())
         
         # DIMENSIONAL BATCH DECAY: All facets decay simultaneously
-        def decay_facet(facet):                    # ← 8 spaces (nested function inside decay_all)
-            facet.decay(rate=0.005)                # ← 12 spaces (inside nested function)
+        def decay_facet(facet):
+            facet.decay(rate=0.005)
         
-        with ThreadPoolExecutor(max_workers=8) as executor:    # ← 8 spaces (back in decay_all)
-            list(executor.map(decay_facet, all_facets))        # ← 12 spaces (inside with block)
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            list(executor.map(decay_facet, all_facets))
         
         # Pattern detection pass
-        if len(self.crystals) > 10:                # ← 8 spaces (back in decay_all)
-            self._detect_recurring_patterns()      # ← 12 spaces (inside if)
+        if len(self.crystals) > 10:
+            self._detect_recurring_patterns()
 
     def _detect_recurring_patterns(self):
         """
@@ -466,21 +448,21 @@ class CrystalMemorySystem:
         """
         from concurrent.futures import ThreadPoolExecutor
         from collections import defaultdict
-        
-    def analyze_crystal(crystal):
-        """Analyze a single crystal (runs in parallel)"""
-        if len(crystal.connections) < 2:
+
+        def analyze_crystal(crystal):
+            """Analyze a single crystal (runs in parallel)"""
+            if len(crystal.connections) < 2:
                 return None
             
-        connected_concepts = sorted([
-        self.crystals[cid].concept for cid in crystal.connections.keys()
+            connected_concepts = sorted([
+                self.crystals[cid].concept for cid in crystal.connections.keys()
                 if cid in self.crystals
             ])
             
-        if len(connected_concepts) >= 2:
+            if len(connected_concepts) >= 2:
                 signature = tuple(connected_concepts[:3])
-        return (signature, crystal.concept)
-        return None
+                return (signature, crystal.concept)
+            return None
         
         # DIMENSIONAL PARALLEL ANALYSIS: All crystals analyzed simultaneously
         connection_signatures = defaultdict(list)
@@ -494,15 +476,15 @@ class CrystalMemorySystem:
                 sig, concept = result
                 connection_signatures[sig].append(concept)
             
-            # Find recurring patterns (same signature used by multiple crystals)
-            for signature, concepts in connection_signatures.items():
-                if len(concepts) >= 3:  # Pattern must appear 3+ times
-                    pattern_key = "_".join(signature)
-                    self.recurring_patterns[pattern_key] = len(concepts)
-                    
-                    # Create abstracted concept if not exists
-                    if pattern_key not in self.abstracted_concepts:
-                        self._create_abstracted_concept(pattern_key, concepts, signature)
+        # Find recurring patterns (same signature used by multiple crystals)
+        for signature, concepts in connection_signatures.items():
+            if len(concepts) >= 3:  # Pattern must appear 3+ times
+                pattern_key = "_".join(signature)
+                self.recurring_patterns[pattern_key] = len(concepts)
+
+                # Create abstracted concept if not exists
+                if pattern_key not in self.abstracted_concepts:
+                    self._create_abstracted_concept(pattern_key, concepts, signature)
     
     def _create_abstracted_concept(self, pattern_key: str, source_concepts: List[str], signature: Tuple):
         """Create generalized concept from recurring pattern"""
@@ -667,7 +649,7 @@ class MetaCrystal:
         }
 
 # ============================================================================
-# 3. GOVERNANCE ENGINE (From meta_sfo_domain.py)
+# 3. GOVERNANCE ENGINE
 # ============================================================================
 
 class GovernanceEngine:
@@ -678,13 +660,11 @@ class GovernanceEngine:
     
     def __init__(self, data_theme: str):
         self.theme = data_theme
-        # --- PERFECTION: Added your 8 laws ---
         self.laws = ['ENERGY', 'MOTION', 'COLLISION', 'CHAOS', 'CONSCIOUSNESS', 'GOVERNANCE', 'RECURSION', 'SYMMETRY']
         self.total_laws_applied = 0
         print(f"Governance Engine Initialized. Theme: '{self.theme}'")
         print(f"External Laws ({len(self.laws)}): {', '.join(self.laws)}")
 
-    # --- PERFECTION: Signature changed to be deterministic ---
     def apply_law(self, crystal: Crystal, data: Dict, action: str) -> Dict[str, Any]:
         """
         Applies one of the 8 laws based on the action,
@@ -754,146 +734,3 @@ class GovernanceEngine:
             "outcome": outcome,
             "energy_change": energy_change
         }
-
-# ============================================================================
-# 4. TEST HARNESS (Simulation Runner)
-# ============================================================================
-
-def run_test_simulation(system: CrystalMemorySystem, iterations: int, dataset: List[Dict]):
-    """
-    Runs the simulation loop, feeding data into the system
-    and triggering evolution.
-    """
-    print("\n" + "="*70)
-    print(f"🚀 STARTING SIMULATION: {system.governance.theme} (Iterations: {iterations})")
-    print("="*70)
-    
-    start_time = time.time()
-    
-    for i in range(iterations):
-        print(f"\n--- Iteration {i+1} / {iterations} ---")
-        
-        for data_point in dataset:
-            
-            # 1. Use the primary crystal
-            crystal = system.use_crystal(data_point['primary_concept'], data_point)
-            if not crystal: continue
-                
-            # 2. Add/strengthen facets
-            # (We'll use a simplified add_facet logic here for the test)
-            crystal.add_facet(data_point['role'], data_point['content'], data_point['confidence'])
-            
-            # 3. Link crystals
-            for linked_concept in data_point.get('links', []):
-                system.link_crystals(
-                    data_point['primary_concept'], 
-                    linked_concept, 
-                    data=data_point
-                )
-        
-        # 4. Apply system-wide decay
-        system.decay_all()
-        
-        print(f"  System Stats: {len(system.crystals)} crystals, {system.total_evolutions} evolutions.")
-
-    end_time = time.time()
-    print("\n" + "="*70)
-    print("🏁 SIMULATION COMPLETE")
-    print(f"  Total Time: {end_time - start_time:.2f} seconds")
-    print("="*70)
-
-
-# --- PERFECTION: New Test Harness for QUASI Evolution ---
-if __name__ == "__main__":
-    
-    # --- 1. Initialize the System Components ---
-    
-    # The "External Rules"
-    DATA_THEME = "security"
-    governance = GovernanceEngine(data_theme=DATA_THEME)
-
-    # The "Memory"
-    system = CrystalMemorySystem(governance_engine=governance)
-    
-    # --- 2. Define the Data Set ---
-    # This dataset is designed to force evolution
-    security_dataset = [
-        {'primary_concept': 'IP_192.168.1.1', 'content': 'Port scan detected', 'role': 'threat_1', 'confidence': 0.8, 'threat_level': 0.7, 'links': ['PORT_SCAN']},
-        {'primary_concept': 'IP_192.168.1.1', 'content': 'Failed login', 'role': 'auth_1', 'confidence': 0.9, 'threat_level': 0.3, 'links': ['BRUTE_FORCE']},
-        {'primary_concept': 'IP_192.168.1.1', 'content': 'Multiple port scans', 'role': 'threat_2', 'confidence': 0.9, 'threat_level': 0.8, 'links': ['PORT_SCAN']},
-        {'primary_concept': 'IP_192.168.1.1', 'content': 'Malware signature', 'role': 'malware_1', 'confidence': 1.0, 'threat_level': 0.9, 'links': ['MALWARE_DB']},
-        {'primary_concept': 'IP_192.168.1.1', 'content': 'Account lockout', 'role': 'auth_2', 'confidence': 1.0, 'threat_level': 0.4, 'links': ['BRUTE_FORCE']},
-        {'primary_concept': 'IP_192.168.1.1', 'content': 'Data exfiltration pattern', 'role': 'data_loss_1', 'confidence': 0.8, 'threat_level': 1.0, 'links': []},
-        {'primary_concept': 'IP_192.168.1.1', 'content': 'C2 Beaconing', 'role': 'c2_1', 'confidence': 0.9, 'threat_level': 0.9, 'links': []},
-        {'primary_concept': 'IP_192.168.1.1', 'content': 'Rootkit detected', 'role': 'malware_2', 'confidence': 1.0, 'threat_level': 1.0, 'links': ['MALWARE_DB']},
-    ]
-    
-    # --- 3. Run Simulation to Evolve to QUASI ---
-    # We need 8 external facets and 50+ uses.
-    # 8 facets are in the dataset. 8 * 10 iterations = 80 uses.
-    ITERATIONS = 10
-    print(f"\n--- RUN 1: Evolving 'IP_192.168.1.1' to QUASI ---")
-    run_test_simulation(system, ITERATIONS, security_dataset)
-    
-    # --- 4. Verify QUASI Evolution ---
-    print("\n--- VERIFYING QUASI STATE ---")
-    quasi_crystal = system.get_or_create_crystal("IP_192.168.1.1")
-    
-    if quasi_crystal.level == CrystalLevel.QUASI:
-        print(f"  ✅ SUCCESS: '{quasi_crystal.concept}' is now {quasi_crystal.level.name}")
-        print(f"  Total Facets: {len(quasi_crystal.facets)}")
-        
-        internal_laws = [f for f in quasi_crystal.facets.values() if f.role.startswith("INTERNAL_LAW")]
-        print(f"  Internal Law Facets: {len(internal_laws)}")
-        assert len(internal_laws) == 8, "QUASI crystal did not generate 8 internal laws!"
-        
-        print(f"  Internal Laws: {[f.role for f in internal_laws]}")
-        
-    else:
-        print(f"  ❌ FAILED: '{quasi_crystal.concept}' only reached {quasi_crystal.level.name}")
-        print(f"     Facets: {len(quasi_crystal.facets)}, Uses: {quasi_crystal.usage_count}")
-
-    # --- 5. Test the "Conscious Hand-off" ---
-    print("\n--- RUN 2: Testing QUASI 'Conscious Hand-off' ---")
-    print(f"Sending a new high-threat event to '{quasi_crystal.concept}'...")
-    
-    # This data should trigger the "COLLISION" law internally
-    high_threat_data = {
-        'threat_level': 0.9, 
-        'detail': 'New attack vector, QUASI test'
-    }
-
-    # We call 'apply_law' *directly* to show the hand-off.
-    # The external engine will receive the call...
-    gov_result = governance.apply_law(
-        quasi_crystal, 
-        high_threat_data, 
-        action="use" # The action doesn't matter, QUASI overrides it
-    )
-    
-    print("\n  Governance Result:")
-    print(f"    Law Applied: {gov_result['law']}")
-    print(f"    Outcome: {gov_result['outcome']}")
-    
-    # Check that the law applied was a "QUASI" internal law
-    assert gov_result['law'].startswith("QUASI_"), "Governance was not handed off to QUASI crystal!"
-    
-    print(f"\n  ✅ SUCCESS: Governance was handed off to the QUASI crystal.")
-    print("  The 'Conscious Mind' is governing itself.")
-    
-    # --- 6. Test QUASI Recursion ---
-    print("\n--- RUN 3: Testing QUASI Recursion ---")
-    other_crystal = system.get_or_create_crystal("PORT_SCAN", "A port scanning activity pattern")
-    
-    quasi_crystal.add_internal_crystal(other_crystal)
-    
-    print(f"  Internal Layers in '{quasi_crystal.concept}': {len(quasi_crystal.internal_layers)}")
-    assert len(quasi_crystal.internal_layers) == 1
-    assert quasi_crystal.internal_layers[0].concept == "PORT_SCAN"
-    print(f"  ✅ SUCCESS: '{quasi_crystal.concept}' is now 'thinking about' '{other_crystal.concept}'.")
-    
-    print("\n" + "="*70)
-    print("  🎉🎉🎉 PERFECTION COMPLETE 🎉🎉🎉")
-    print("  QUASI evolution, internal laws, and recursion logic is working.")
-    print("="*70)
-

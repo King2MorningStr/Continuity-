@@ -1,6 +1,6 @@
 [tool.briefcase]
 project_name = "UDAC"
-bundle = "com.dimensional_cortex"
+bundle = "com.dimensional.cortex"
 version = "0.0.1"
 url = "https://example.com/udac"
 license = "Proprietary"

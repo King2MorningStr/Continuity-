@@ -1,10 +1,9 @@
-#!/usr/bin/env python3
 """
-Dimensional Memory Constant (Standalone Evolving System)
-=========================================================
+Dimensional Memory Constant
+===========================
 
-This single file contains the complete, standalone Dimensional Processing
-System. It is a "living" system that can learn and evolve.
+This module contains the Dimensional Processing System.
+It is a "living" system that can learn and evolve.
 
 This is the "PERFECTED" module, implementing:
 1.  **Inherited Governance ("Mutation"):** Parent Laws (like JSON) can
@@ -26,10 +25,11 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Callable
 
 # --- Configuration Constants ---
+# These should ideally be relative to a data directory or configured
 BASE_SAVE_FILE = "system_base_state.json"
 DELTA_LOG_FILE = "system_live.deltalog"
 TEMP_SAVE_FILE = "system_base_state.tmp"
-MERGE_INTERVAL_SECONDS = 30  # Run merge every 30 seconds for testing
+MERGE_INTERVAL_SECONDS = 30
 LOG_FORMAT = '%(asctime)s - %(threadName)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
@@ -241,7 +241,12 @@ class TextLawSet:
         
         # 1. Standard logic
         sentiment = "positive" if "on track" in text else "negative" if "failed" in text else "neutral"
-        concept_name = f"TXT_{uuid.uuid4().hex[:6]}"
+
+        if "concept" in data:
+            concept_name = data["concept"]
+        else:
+            concept_name = f"TXT_{uuid.uuid4().hex[:6]}"
+
         dimensions = ["dim_theme:text", f"dim_sentiment:{sentiment}"]
         payload_update = { "raw_text": text, "char_count": len(text) }
         
@@ -656,7 +661,7 @@ def background_merge():
 
 
 # ============================================================================
-# 5. SYSTEM CONTROL & EXAMPLE USAGE
+# 5. SYSTEM CONTROL
 # ============================================================================
 
 def start_memory_system() -> Tuple[EvolutionaryGovernanceEngine, DimensionalMemory, threading.Thread, threading.Thread]:
@@ -689,115 +694,3 @@ def stop_memory_system(save_thread: threading.Thread, merge_thread: threading.Th
         except Exception as e:
             logging.error(f"Shutdown save error: {e}")
     logging.info("System shutdown complete.")
-
-
-# --- PERFECTION: New Test Harness for "Generational" Logic ---
-if __name__ == "__main__":
-    
-    # Clean up old files for a fresh demo
-    if os.path.exists(BASE_SAVE_FILE): os.remove(BASE_SAVE_FILE)
-    if os.path.exists(DELTA_LOG_FILE): os.remove(DELTA_LOG_FILE)
-    
-    # 1. Start the system
-    governor, memory_system, save_t, merge_t = start_memory_system()
-    
-    # 2. Define a "multimodal" data object (JSON + Security + Text)
-    # This is the "Generational" test.
-    complex_crystal_data = {
-        "root_concept": "CRYSTAL_Log_Event_ABC",
-        "json_data": { "status": "processed", "level": "QUASI" },
-        "facets": [
-            {
-                "ip": "192.168.1.10", 
-                "action": "port_scan", 
-                "threat_level": 0.7,
-                "vector_complexity": 0.6
-            },
-            {
-                "text": "Port scan correlated with brute force attempt", 
-                "source_doc": "alert.log"
-            }
-        ]
-    }
-    
-    # 3. Ingest the *single* complex object
-    logging.info("\n--- INGESTING MULTIMODAL (GENERATIONAL) DATA ---")
-    governor.ingest_data(complex_crystal_data)
-    
-    # 4. Let the system run to allow threads to save and link
-    logging.info("\n--- Main thread sleeping for 5 seconds... ---\n")
-    time.sleep(5)
-    
-    # 5. Shut down
-    stop_memory_system(save_t, merge_t)
-    
-    # 6. Final "Perfection" Check
-    print("\n" + "="*40)
-    print("--- FINAL STATE VERIFICATION ---")
-    print("="*40)
-
-    try:
-        # --- Check 1: The Parent "Container" Node ---
-        print("\nChecking 1: Parent Node (JSON Law)")
-        parent_id = memory_system.find_node_id_by_concept("CRYSTAL_Log_Event_ABC")
-        assert parent_id, "Parent node was not created."
-        parent_node = memory_system.get_node(parent_id)
-        print(f"  ✅ Found Parent Node: {parent_node.payload.get('concept')}")
-        
-        child_links = [l for l in parent_node.dimension_links if l.startswith('dim_child_link:')]
-        assert len(child_links) == 2, f"Parent node should have 2 child links, found {len(child_links)}"
-        print(f"  ✅ Found {len(child_links)} 'dim_child_link' entries.")
-        
-        # --- Check 2: The Security "Child" Node ---
-        print("\nChecking 2: Child Node (Security Law)")
-        child_sec_id = memory_system.find_node_id_by_concept("IP_192.168.1.10")
-        assert child_sec_id, "Security child node was not created."
-        child_sec_node = memory_system.get_node(child_sec_id)
-        print(f"  ✅ Found Security Child: {child_sec_node.payload.get('concept')}")
-        
-        # Check Parent Link
-        assert f"dim_parent_link:{parent_id}" in child_sec_node.dimension_links, "Child missing parent link."
-        print("  ✅ 'dim_parent_link' is correct.")
-        
-        # Check Mutation
-        assert "dim_mutator:JSON" in child_sec_node.dimension_links, "Child missing mutation link."
-        print("  ✅ 'dim_mutator:JSON' is present.")
-        
-        # Check Mutated Payload
-        assert "json_leaf_data" in child_sec_node.payload, "Payload was not mutated."
-        print("  ✅ Payload was correctly mutated (has 'json_leaf_data').")
-        print(f"     Payload: {child_sec_node.payload['json_leaf_data']}")
-
-        # --- Check 3: The Text "Child" Node ---
-        print("\nChecking 3: Child Node (Text Law)")
-        child_txt_id = [n.id for n in memory_system.nodes.values() if n.payload.get('concept', '').startswith('TXT_')][0]
-        assert child_txt_id, "Text child node was not created."
-        child_txt_node = memory_system.get_node(child_txt_id)
-        print(f"  ✅ Found Text Child: {child_txt_node.payload.get('concept')}")
-        
-        # Check Parent Link
-        assert f"dim_parent_link:{parent_id}" in child_txt_node.dimension_links, "Child missing parent link."
-        print("  ✅ 'dim_parent_link' is correct.")
-        
-        # Check Mutation
-        assert "dim_mutator:JSON" in child_txt_node.dimension_links, "Child missing mutation link."
-        print("  ✅ 'dim_mutator:JSON' is present.")
-        
-        # Check Mutated Payload
-        assert "json_leaf_data" in child_txt_node.payload, "Payload was not mutated."
-        print("  ✅ Payload was correctly mutated (has 'json_leaf_data').")
-        
-        print("\n" + "="*40)
-        print("  🎉🎉🎉 PERFECTION COMPLETE 🎉🎉🎉")
-        print("  Generational linking & mutation logic is working.")
-        print("="*40)
-
-    except Exception as e:
-        print("\n" + "!"*40)
-        print(f"  ❌ FAILED: Test harness assertion failed.")
-        print(f"  Error: {e}")
-        print("!"*40)
-
-    print(f"\nGovernor assessment log contains {len(governor.assessment_log)} entries.")
-    print("System test complete. Check 'system_base_state.json' for final saved memory.")
-
