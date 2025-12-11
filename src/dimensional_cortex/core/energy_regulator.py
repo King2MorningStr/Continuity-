@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 """
-Dimensional Energy Regulation System (FULLY DIMENSIONAL - NO LINEAR LARRYS)
-============================================================================
+Dimensional Energy Regulation System
+====================================
 ZERO sequential for-loops in hot paths.
 ALL operations are vectorized batch processing or parallel threaded.
 
