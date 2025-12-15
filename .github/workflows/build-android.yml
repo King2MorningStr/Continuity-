@@ -34,7 +34,6 @@ jobs:
           PROJECT_ROOT=$(find . -maxdepth 2 -type f -name requirements.txt -exec dirname {} \; | head -n 1)
           if [ -z "$PROJECT_ROOT" ]; then
             echo "❌ requirements.txt not found after unzip"
-            echo "📂 File tree:"
             find . -maxdepth 3 -type f
             exit 1
           fi
@@ -42,30 +41,31 @@ jobs:
           echo "📍 Detected project root: $PROJECT_ROOT"
           echo "PROJECT_ROOT=$PROJECT_ROOT" >> $GITHUB_ENV
 
-      # 3️⃣ Setup Python (NOW files exist)
+      # 3️⃣ Setup Python (after unzip)
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # 4️⃣ Setup Java
+      # 4️⃣ Setup Java (Android toolchain)
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "17"
 
-      # 5️⃣ Install system dependencies (known landmines)
+      # 5️⃣ Install ALL native dependencies (final, complete set)
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libcairo2-dev \
+            build-essential \
             pkg-config \
             python3-dev \
+            libcairo2-dev \
+            gobject-introspection \
             libgirepository1.0-dev \
-            gir1.2-gtk-3.0 \
-            build-essential
+            gir1.2-gtk-3.0
 
       # 6️⃣ Install Python dependencies
       - name: Install Python dependencies
@@ -80,7 +80,7 @@ jobs:
           cd "$PROJECT_ROOT"
           briefcase create android --no-input
 
-      # 8️⃣ Apply Android resources
+      # 8️⃣ Apply Android resource overrides
       - name: Apply Android resource overrides
         run: |
           cd "$PROJECT_ROOT"
@@ -100,7 +100,7 @@ jobs:
           cd "$PROJECT_ROOT"
           briefcase package android --adhoc
 
-      # 1️⃣1️⃣ Upload APK
+      # 1️⃣1️⃣ Upload APK artifact
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
