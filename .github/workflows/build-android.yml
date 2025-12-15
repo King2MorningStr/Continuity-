@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Unpack UDAC Portal zip FIRST (source of truth)
+      # 2️⃣ Unpack UDAC Portal zip FIRST and detect project root
       - name: Unpack UDAC Portal zip and detect project root
         run: |
           set -e
@@ -54,7 +54,7 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      # 5️⃣ Install ALL native dependencies (final, complete set)
+      # 5️⃣ Install ALL native system dependencies (FINAL SET)
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -65,6 +65,8 @@ jobs:
             libcairo2-dev \
             gobject-introspection \
             libgirepository1.0-dev \
+            libglib2.0-dev \
+            libffi-dev \
             gir1.2-gtk-3.0
 
       # 6️⃣ Install Python dependencies
