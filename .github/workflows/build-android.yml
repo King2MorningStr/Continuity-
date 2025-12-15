@@ -13,64 +13,76 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
-      # 3️⃣ Unpack UDAC build zip FIRST
+      - name: Setup Java (Android toolchain)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+          cache: "gradle"
+
       - name: Unpack UDAC Portal zip
         run: |
           set -e
-
           ZIP_FILE=$(ls *.zip | head -n 1)
-
           if [ -z "$ZIP_FILE" ]; then
             echo "❌ No UDAC zip found in repo root"
             exit 1
           fi
-
           echo "📦 Unpacking $ZIP_FILE"
           unzip -o "$ZIP_FILE"
-
           echo "📂 Workspace after unzip:"
           ls -la
 
-      # 4️⃣ Install dependencies (NOW requirements.txt exists)
-      - name: Install dependencies
+      - name: Install system dependencies (pycairo/cairo + GI)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libcairo2-dev \
+            pkg-config \
+            python3-dev \
+            libgirepository1.0-dev \
+            gir1.2-gtk-3.0 \
+            build-essential
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 5️⃣ Create Android project
       - name: Briefcase create Android
         run: |
           briefcase create android --no-input
 
-      # 6️⃣ Apply Android resource overrides
-      - name: Apply Android resources
+      - name: Apply Android resource overrides
         run: |
+          set -e
           RES_DIR="udac_portal/build/udac_portal/android/gradle/app/src/main/res"
           mkdir -p "$RES_DIR"
-          cp -r android_res/* "$RES_DIR/"
+          if [ -d "android_res" ]; then
+            cp -r android_res/* "$RES_DIR/"
+          else
+            echo "❌ android_res folder not found after unzip"
+            exit 1
+          fi
 
-      # 7️⃣ Build Android
       - name: Build Android
         run: |
           briefcase build android
 
-      # 8️⃣ Package APK
       - name: Package APK
         run: |
           briefcase package android --adhoc
 
-      # 9️⃣ Upload APK artifact
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: udac-portal-apk
