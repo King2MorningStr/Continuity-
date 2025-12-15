@@ -13,22 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "17"
-          cache: "gradle"
-
+      # 2️⃣ Unpack UDAC Portal zip FIRST (source of truth)
       - name: Unpack UDAC Portal zip and detect project root
         run: |
           set -e
@@ -53,7 +42,21 @@ jobs:
           echo "📍 Detected project root: $PROJECT_ROOT"
           echo "PROJECT_ROOT=$PROJECT_ROOT" >> $GITHUB_ENV
 
-      - name: Install system dependencies (GTK / cairo / GI)
+      # 3️⃣ Setup Python (NOW files exist)
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 4️⃣ Setup Java
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      # 5️⃣ Install system dependencies (known landmines)
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -64,43 +67,42 @@ jobs:
             gir1.2-gtk-3.0 \
             build-essential
 
+      # 6️⃣ Install Python dependencies
       - name: Install Python dependencies
         run: |
           cd "$PROJECT_ROOT"
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Briefcase create Android project
+      # 7️⃣ Create Android project
+      - name: Briefcase create Android
         run: |
           cd "$PROJECT_ROOT"
           briefcase create android --no-input
 
+      # 8️⃣ Apply Android resources
       - name: Apply Android resource overrides
         run: |
           cd "$PROJECT_ROOT"
           RES_DIR="udac_portal/build/udac_portal/android/gradle/app/src/main/res"
           mkdir -p "$RES_DIR"
+          cp -r android_res/* "$RES_DIR/"
 
-          if [ -d "android_res" ]; then
-            cp -r android_res/* "$RES_DIR/"
-          else
-            echo "❌ android_res directory not found in project root"
-            exit 1
-          fi
-
+      # 9️⃣ Build Android
       - name: Build Android
         run: |
           cd "$PROJECT_ROOT"
           briefcase build android
 
+      # 🔟 Package APK
       - name: Package APK
         run: |
           cd "$PROJECT_ROOT"
           briefcase package android --adhoc
 
+      # 1️⃣1️⃣ Upload APK
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: udac-portal-apk
-          path: |
-            **/dist/*
+          path: "**/dist/*"
