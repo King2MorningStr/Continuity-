@@ -1,6 +1,41 @@
-name: Unzip build ZIP into the build directory
- 
- run: |
-     echo "Unzipping project..."
-     unzip -o udac_portal_full_build_ready.zip -d build_tree
-      # If your ZIP is inside subfolder, change path above
+name: Unpack UDAC Portal Zip
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "**/*.zip"
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find and unpack UDAC zip
+        run: |
+          set -e
+
+          ZIP_FILE=$(ls *.zip | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "❌ No zip file found in repo root"
+            exit 1
+          fi
+
+          echo "📦 Found zip: $ZIP_FILE"
+          unzip -o "$ZIP_FILE"
+
+          echo "📂 Contents after unzip:"
+          ls -la
+
+      - name: Commit unpacked contents
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add .
+          git commit -m "Unpack UDAC Portal build zip" || echo "No changes to commit"
+          git push
