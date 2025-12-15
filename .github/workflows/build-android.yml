@@ -1,55 +1,77 @@
-name: Build UDAC From ZIP
+name: Build UDAC Portal Android APK
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-      - master
+    branches: ["main", "master"]
+    paths:
+      - "**/*.zip"
+      - ".github/workflows/**"
 
 jobs:
-  build:
+  build-android:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+      # 1️⃣ Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Install unzip
-      run: sudo apt-get update && sudo apt-get install -y unzip
+      # 2️⃣ Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Prepare build directory
-      run: |
-        echo "Creating clean build directory..."
-        rm -rf build_tree
-        mkdir build_tree
+      # 3️⃣ Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Unzip build ZIP into the build directory
-      run: |
-        echo "Unzipping project..."
-        unzip -o udac_portal.zip -d build_tree
-      # If your ZIP is inside subfolder, change path above
+      # 4️⃣ Unpack UDAC build zip (NO commit, NO push)
+      - name: Unpack UDAC Portal zip
+        run: |
+          set -e
 
-    - name: Show structure for debugging
-      run: |
-        echo "===== UNZIPPED STRUCTURE ====="
-        tree -L 5 build_tree || ls -R build_tree
+          ZIP_FILE=$(ls *.zip | head -n 1)
 
-    - name: Set up Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: 17
+          if [ -z "$ZIP_FILE" ]; then
+            echo "❌ No UDAC zip found in repo root"
+            exit 1
+          fi
 
-    - name: Grant gradle wrapper permissions
-      run: chmod +x ./build_tree/gradlew
+          echo "📦 Unpacking $ZIP_FILE"
+          unzip -o "$ZIP_FILE"
 
-    - name: Build Android App
-      working-directory: build_tree
-      run: ./gradlew assembleDebug --stacktrace
+          echo "📂 Workspace after unzip:"
+          ls -la
 
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: UDAC-APK
-        path: build_tree/app/build/outputs/apk/debug/*.apk
+      # 5️⃣ Create Android project
+      - name: Briefcase create Android
+        run: |
+          briefcase create android --no-input
+
+      # 6️⃣ Apply Android resource overrides
+      - name: Apply Android resources
+        run: |
+          RES_DIR="udac_portal/build/udac_portal/android/gradle/app/src/main/res"
+          mkdir -p "$RES_DIR"
+          cp -r android_res/* "$RES_DIR/"
+
+      # 7️⃣ Build Android
+      - name: Build Android
+        run: |
+          briefcase build android
+
+      # 8️⃣ Package APK
+      - name: Package APK
+        run: |
+          briefcase package android --adhoc
+
+      # 9️⃣ Upload APK artifact
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: udac-portal-apk
+          path: udac_portal/dist/*
