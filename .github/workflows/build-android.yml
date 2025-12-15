@@ -27,7 +27,7 @@ jobs:
     - name: Unzip build ZIP into the build directory
       run: |
         echo "Unzipping project..."
-        unzip -o udac_portal.zip -d build_tree
+        unzip -o udac_portal_full_build_ready.zip -d build_tree
       # If your ZIP is inside subfolder, change path above
 
     - name: Show structure for debugging
