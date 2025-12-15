@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repo
+      # 1️⃣ Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -23,13 +23,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      # 3️⃣ Install dependencies
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      # 4️⃣ Unpack UDAC build zip (NO commit, NO push)
+      # 3️⃣ Unpack UDAC build zip FIRST
       - name: Unpack UDAC Portal zip
         run: |
           set -e
@@ -46,6 +40,12 @@ jobs:
 
           echo "📂 Workspace after unzip:"
           ls -la
+
+      # 4️⃣ Install dependencies (NOW requirements.txt exists)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       # 5️⃣ Create Android project
       - name: Briefcase create Android
