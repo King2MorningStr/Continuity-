@@ -3,7 +3,8 @@ name: Build UDAC Portal Android APK
 on:
   workflow_dispatch:
   push:
-    branches: ["Gpt-Seph", "master"]
+    branches:
+      - GPT-SEPH
 
 jobs:
   build-android:
@@ -20,7 +21,21 @@ jobs:
           unzip -o "$ZIP_FILE"
 
           PROJECT_ROOT=$(find . -maxdepth 2 -name requirements.txt -exec dirname {} \; | head -n 1)
+          if [ -z "$PROJECT_ROOT" ]; then
+            echo "requirements.txt not found after unzip"
+            exit 1
+          fi
+
           echo "PROJECT_ROOT=$PROJECT_ROOT" >> $GITHUB_ENV
+
+      - name: Override requirements.txt for Android build
+        run: |
+          cd "$PROJECT_ROOT"
+          cat > requirements.txt << 'EOF'
+          briefcase>=0.3.17
+          toga-android==0.5.3
+          platformdirs>=4.0.0
+          EOF
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -40,17 +55,7 @@ jobs:
             build-essential \
             pkg-config \
             python3-dev \
-            libcairo2-dev \
-            gobject-introspection \
-            libgirepository-1.0-dev \
-            gir1.2-girepository-2.0-dev \
-            libglib2.0-dev \
-            libffi-dev \
-            gir1.2-gtk-3.0
-
-      - name: Export pkg-config paths (CRITICAL)
-        run: |
-          echo "PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+            libffi-dev
 
       - name: Install Python dependencies
         run: |
