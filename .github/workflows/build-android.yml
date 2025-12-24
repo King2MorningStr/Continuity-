@@ -11,43 +11,56 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # -----------------------------
+      # Checkout repository
+      # -----------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Unpack UDAC Portal zip and detect project root
+      # -----------------------------
+      # Unpack project ZIP and find root via pyproject.toml
+      # -----------------------------
+      - name: Unpack UDAC project and detect root
         run: |
           set -e
+
           ZIP_FILE=$(ls *.zip | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No project ZIP found"
+            exit 1
+          fi
+
           unzip -o "$ZIP_FILE"
 
-          PROJECT_ROOT=$(find . -maxdepth 2 -name requirements.txt -exec dirname {} \; | head -n 1)
+          PROJECT_ROOT=$(find . -maxdepth 2 -name pyproject.toml -exec dirname {} \; | head -n 1)
           if [ -z "$PROJECT_ROOT" ]; then
-            echo "requirements.txt not found after unzip"
+            echo "pyproject.toml not found after unzip"
             exit 1
           fi
 
           echo "PROJECT_ROOT=$PROJECT_ROOT" >> $GITHUB_ENV
+          echo "Using PROJECT_ROOT=$PROJECT_ROOT"
 
-      - name: Override requirements.txt for Android build
-        run: |
-          cd "$PROJECT_ROOT"
-          cat > requirements.txt << 'EOF'
-          briefcase>=0.3.17
-          toga-android==0.5.3
-          platformdirs>=4.0.0
-          EOF
-
+      # -----------------------------
+      # Python setup
+      # -----------------------------
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # -----------------------------
+      # Java setup (required for Android)
+      # -----------------------------
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "17"
 
+      # -----------------------------
+      # System dependencies
+      # -----------------------------
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -55,31 +68,49 @@ jobs:
             build-essential \
             pkg-config \
             python3-dev \
-            libffi-dev
+            libffi-dev \
+            libssl-dev \
+            unzip \
+            zip
 
-      - name: Install Python dependencies
+      # -----------------------------
+      # Python dependencies
+      # -----------------------------
+      - name: Install Python tooling
         run: |
-          cd "$PROJECT_ROOT"
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install briefcase
 
+      # -----------------------------
+      # Briefcase: create Android project
+      # -----------------------------
       - name: Briefcase create Android
         run: |
           cd "$PROJECT_ROOT"
           briefcase create android --no-input
 
-      - name: Build Android
+      # -----------------------------
+      # Briefcase: build Android
+      # -----------------------------
+      - name: Briefcase build Android
         run: |
           cd "$PROJECT_ROOT"
           briefcase build android
 
-      - name: Package APK
+      # -----------------------------
+      # Briefcase: package APK
+      # -----------------------------
+      - name: Briefcase package Android APK
         run: |
           cd "$PROJECT_ROOT"
           briefcase package android --adhoc
 
-      - name: Upload APK
+      # -----------------------------
+      # Upload APK artifact
+      # -----------------------------
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: udac-portal-apk
-          path: "**/dist/*"
+          path: |
+            **/dist/*.apk
