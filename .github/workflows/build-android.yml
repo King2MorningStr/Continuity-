@@ -108,9 +108,11 @@ jobs:
       # -----------------------------
       # Upload APK artifact
       # -----------------------------
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: udac-portal-apk
-          path: |
-            **/dist/*.apk
+         name: udac-portal-apk
+         path: |
+          **/app-debug.apk
+          **/app-release.apk
+          **/outputs/apk/**/*.apk
