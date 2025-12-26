@@ -32,7 +32,8 @@ version = 1.0.2
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy==2.2.1,android,jnius,platformdirs
+# Using pyjnius 1.5.0+ for Python 3.10+ compatibility
+requirements = python3==3.10.15,kivy==2.2.1,android,pyjnius==1.6.1,platformdirs
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
