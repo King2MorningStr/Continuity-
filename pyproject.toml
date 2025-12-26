@@ -1,0 +1,25 @@
+[build-system]
+requires = ["briefcase"]
+build-backend = "briefcase.build"
+
+[tool.briefcase]
+project_name = "UDAC Portal"
+bundle = "com.udacportal"
+version = "1.0.0"
+author = "Sunni"
+description = "A browser with a brain for AI platforms"
+license = "MIT"
+
+[tool.briefcase.app.udac_portal]
+formal_name = "UDAC Portal"
+license = "MIT"
+sources = ["udac_portal"]
+requires = [
+    "toga-core>=0.4.0",
+    "platformdirs>=4.0.0",
+]
+
+[tool.briefcase.app.udac_portal.android]
+requires = [
+    "toga-android>=0.4.0",
+]
