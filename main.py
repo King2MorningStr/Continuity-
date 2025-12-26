@@ -234,9 +234,17 @@ class PortalScreen(Screen):
 
     def load_webview(self, url):
         """Load URL in WebView (Android WebView)."""
+        # Try to import jnius - may not be available in initial builds
         try:
             from jnius import autoclass, PythonJavaClass, java_method
+            JNIUS_AVAILABLE = True
+        except ImportError:
+            JNIUS_AVAILABLE = False
+            print("[UDAC] Warning: jnius not available - WebView disabled")
+            self.webview_placeholder.text = f'WebView not available\n\nOpening: {url}\n\nUse mobile browser to access AI platforms'
+            return
 
+        try:
             # Get Android classes
             WebView = autoclass('android.webkit.WebView')
             WebViewClient = autoclass('android.webkit.WebViewClient')
@@ -346,7 +354,7 @@ class PortalScreen(Screen):
             import traceback
             print(f"[UDAC] WebView error: {e}")
             print(traceback.format_exc())
-            self.webview_placeholder.text = f'WebView unavailable\nError: {e}\n\n(Desktop mode - use browser)'
+            self.webview_placeholder.text = f'WebView unavailable\nError: {e}\n\n(Use mobile browser to access AI platforms)'
 
     def send_message(self, instance):
         """Send message with continuity enrichment."""

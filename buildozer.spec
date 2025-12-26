@@ -32,8 +32,9 @@ version = 1.0.2
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-# Minimal requirements - let p4a handle dependencies automatically
-requirements = python3,kivy==2.2.1,android,platformdirs
+# Basic Kivy app first - WebView/jnius to be added later
+# TODO: Add back 'android' requirement once pyjnius Python 3 compatibility is resolved
+requirements = python3,kivy==2.2.1,platformdirs
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
