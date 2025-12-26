@@ -32,8 +32,8 @@ version = 1.0.2
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-# Using custom p4a recipe for pyjnius with Python 3 patch
-requirements = python3,kivy
+# Using custom p4a recipes for pyjnius and kivy with Python 3 patches
+requirements = python3,kivy,android,pyjnius
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes

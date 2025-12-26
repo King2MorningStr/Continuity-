@@ -311,15 +311,25 @@ class PortalScreen(Screen):
                     """Inject bridge script when page finishes loading."""
                     print(f"[UDAC] Page loaded: {url}")
                     if self.portal_screen.current_platform:
-                        # Inject the bridge script
-                        bridge_script = PortalScriptBuilder.build(
-                            self.portal_screen.current_platform
-                        )
-                        view.evaluateJavascript(bridge_script, None)
-                        print("[UDAC] Bridge script injected")
+                        try:
+                            # Inject the bridge script
+                            bridge_script = PortalScriptBuilder.build(
+                                self.portal_screen.current_platform
+                            )
+                            view.evaluateJavascript(bridge_script, None)
+                            print("[UDAC] Bridge script injected successfully")
+                        except Exception as e:
+                            print(f"[UDAC] Script injection failed: {e}")
+                            import traceback
+                            traceback.print_exc()
 
             # Create WebView on UI thread
             def create_webview(dt):
+                # Check if we're still on portal screen (race condition fix)
+                if not hasattr(self, 'manager') or self.manager.current != 'portal':
+                    print("[UDAC] Portal screen no longer active, skipping WebView creation")
+                    return
+
                 # Create WebView
                 self.webview = WebView(activity)
                 settings = self.webview.getSettings()
@@ -420,20 +430,34 @@ class PortalScreen(Screen):
         # Clean up WebView
         if self.webview:
             try:
-                from jnius import autoclass
-                activity = autoclass('org.kivy.android.PythonActivity').mActivity
-                layout = activity.findViewById(0x01020002)
-                if layout:
-                    layout.removeView(self.webview)
-                self.webview.destroy()
-                self.webview = None
-                print("[UDAC] WebView cleaned up")
+                # Check if jnius is available first
+                try:
+                    from jnius import autoclass
+                except ImportError:
+                    print("[UDAC] jnius not available, skipping native WebView cleanup")
+                    self.webview = None
+                    # Continue to session cleanup below
+
+                if self.webview:  # Only if not already cleared above
+                    activity = autoclass('org.kivy.android.PythonActivity').mActivity
+                    layout = activity.findViewById(0x01020002)
+                    if layout:
+                        layout.removeView(self.webview)
+                    self.webview.destroy()
+                    self.webview = None
+                    print("[UDAC] WebView cleaned up")
             except Exception as e:
                 print(f"[UDAC] WebView cleanup error: {e}")
+                # Still clear the reference to prevent memory leak
+                self.webview = None
 
-        # End session
-        if self.current_platform:
-            SESSION.shutdown()
+        # Always end session, even if WebView cleanup failed
+        try:
+            if self.current_platform:
+                SESSION.shutdown()
+                print("[UDAC] Session ended")
+        except Exception as e:
+            print(f"[UDAC] Session shutdown error: {e}")
 
         self.current_platform = None
         self.manager.current = 'home'
