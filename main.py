@@ -28,6 +28,11 @@ from udac_portal.session_manager import SESSION
 from udac_portal.entitlement_engine import ENTITLEMENTS
 from udac_portal.script_builder import PortalScriptBuilder
 from udac_portal.ivm_resilience import ivm_resilient, ivm_safe_call, RESILIENCE
+import json
+import os
+import platform
+import sys
+from datetime import datetime
 
 print(f"[UDAC] Crash log location: {_UDAC_CRASH_LOG_PATH}")
 print("[UDAC] 🚀 Starting UDAC Portal (Kivy version)...")
@@ -42,6 +47,226 @@ except ImportError:
     print("[UDAC] ⚠️ jnius not available - WebView disabled")
 except Exception as e:
     print(f"[UDAC] ⚠️ jnius import error: {e} - WebView disabled")
+
+
+def run_diagnostics():
+    """Run comprehensive diagnostics and return JSON report."""
+    report = {
+        "timestamp": datetime.now().isoformat(),
+        "test_results": {},
+        "summary": {"passed": 0, "failed": 0, "warnings": 0}
+    }
+
+    # Test 1: Python Environment
+    try:
+        report["test_results"]["python_environment"] = {
+            "status": "PASS",
+            "python_version": sys.version,
+            "platform": platform.platform(),
+            "architecture": platform.machine(),
+        }
+        report["summary"]["passed"] += 1
+    except Exception as e:
+        report["test_results"]["python_environment"] = {
+            "status": "FAIL",
+            "error": str(e)
+        }
+        report["summary"]["failed"] += 1
+
+    # Test 2: jnius Availability
+    try:
+        if JNIUS_AVAILABLE:
+            from jnius import autoclass
+            report["test_results"]["jnius"] = {
+                "status": "PASS",
+                "available": True,
+                "can_import": True
+            }
+            report["summary"]["passed"] += 1
+        else:
+            report["test_results"]["jnius"] = {
+                "status": "WARN",
+                "available": False,
+                "message": "jnius not available - WebView disabled"
+            }
+            report["summary"]["warnings"] += 1
+    except Exception as e:
+        report["test_results"]["jnius"] = {
+            "status": "FAIL",
+            "error": str(e)
+        }
+        report["summary"]["failed"] += 1
+
+    # Test 3: Android Classes (if jnius available)
+    if JNIUS_AVAILABLE:
+        try:
+            from jnius import autoclass
+            activity = autoclass('org.kivy.android.PythonActivity')
+            webview_class = autoclass('android.webkit.WebView')
+            report["test_results"]["android_classes"] = {
+                "status": "PASS",
+                "activity_class": "accessible",
+                "webview_class": "accessible"
+            }
+            report["summary"]["passed"] += 1
+        except Exception as e:
+            report["test_results"]["android_classes"] = {
+                "status": "FAIL",
+                "error": str(e)
+            }
+            report["summary"]["failed"] += 1
+    else:
+        report["test_results"]["android_classes"] = {
+            "status": "SKIP",
+            "message": "jnius not available"
+        }
+
+    # Test 4: Platform Registry
+    try:
+        platforms = REGISTRY.get_all_platforms()
+        platform_list = [{"name": p.name, "enabled": p.enabled, "id": p.id} for p in platforms]
+        report["test_results"]["platform_registry"] = {
+            "status": "PASS",
+            "total_platforms": len(platforms),
+            "enabled_platforms": sum(1 for p in platforms if p.enabled),
+            "platforms": platform_list
+        }
+        report["summary"]["passed"] += 1
+    except Exception as e:
+        report["test_results"]["platform_registry"] = {
+            "status": "FAIL",
+            "error": str(e)
+        }
+        report["summary"]["failed"] += 1
+
+    # Test 5: Session Manager
+    try:
+        session_active = hasattr(SESSION, 'start_session')
+        report["test_results"]["session_manager"] = {
+            "status": "PASS",
+            "methods_available": session_active
+        }
+        report["summary"]["passed"] += 1
+    except Exception as e:
+        report["test_results"]["session_manager"] = {
+            "status": "FAIL",
+            "error": str(e)
+        }
+        report["summary"]["failed"] += 1
+
+    # Test 6: Continuity Engine
+    try:
+        engine_status = ENGINE.get_stats()
+        report["test_results"]["continuity_engine"] = {
+            "status": "PASS",
+            "enabled": engine_status.get("enabled", False),
+            "injection_strength": engine_status.get("injection_strength", 0),
+            "cross_platform_memories": engine_status.get("cross_platform_memories", 0),
+            "platform_isolation": engine_status.get("platform_isolation", False)
+        }
+        report["summary"]["passed"] += 1
+    except Exception as e:
+        report["test_results"]["continuity_engine"] = {
+            "status": "FAIL",
+            "error": str(e)
+        }
+        report["summary"]["failed"] += 1
+
+    # Test 7: Entitlements
+    try:
+        is_premium = ENTITLEMENTS.is_premium()
+        report["test_results"]["entitlements"] = {
+            "status": "PASS",
+            "tier": "PREMIUM" if is_premium else "FREE"
+        }
+        report["summary"]["passed"] += 1
+    except Exception as e:
+        report["test_results"]["entitlements"] = {
+            "status": "FAIL",
+            "error": str(e)
+        }
+        report["summary"]["failed"] += 1
+
+    # Test 8: File System Access
+    try:
+        # Try to get storage directory
+        try:
+            from platformdirs import user_data_dir
+            storage_dir = user_data_dir("UDAC Portal", "Sunni")
+            storage_available = True
+        except ImportError:
+            import tempfile
+            storage_dir = os.path.join(tempfile.gettempdir(), "udac_portal")
+            storage_available = False
+
+        # Check if directory exists or can be created
+        os.makedirs(storage_dir, exist_ok=True)
+        can_write = os.access(storage_dir, os.W_OK)
+
+        report["test_results"]["file_system"] = {
+            "status": "PASS" if can_write else "WARN",
+            "storage_dir": storage_dir,
+            "platformdirs_available": storage_available,
+            "can_write": can_write,
+            "exists": os.path.exists(storage_dir)
+        }
+        if can_write:
+            report["summary"]["passed"] += 1
+        else:
+            report["summary"]["warnings"] += 1
+    except Exception as e:
+        report["test_results"]["file_system"] = {
+            "status": "FAIL",
+            "error": str(e)
+        }
+        report["summary"]["failed"] += 1
+
+    # Test 9: Kivy Components
+    try:
+        from kivy import __version__ as kivy_version
+        report["test_results"]["kivy"] = {
+            "status": "PASS",
+            "version": kivy_version,
+            "components": ["App", "ScreenManager", "BoxLayout", "Button", "Label"]
+        }
+        report["summary"]["passed"] += 1
+    except Exception as e:
+        report["test_results"]["kivy"] = {
+            "status": "FAIL",
+            "error": str(e)
+        }
+        report["summary"]["failed"] += 1
+
+    # Test 10: Crash Logging
+    try:
+        crash_log_available = _UDAC_CRASH_LOG_PATH is not None
+        report["test_results"]["crash_logging"] = {
+            "status": "PASS" if crash_log_available else "WARN",
+            "crash_log_path": _UDAC_CRASH_LOG_PATH,
+            "available": crash_log_available
+        }
+        if crash_log_available:
+            report["summary"]["passed"] += 1
+        else:
+            report["summary"]["warnings"] += 1
+    except Exception as e:
+        report["test_results"]["crash_logging"] = {
+            "status": "FAIL",
+            "error": str(e)
+        }
+        report["summary"]["failed"] += 1
+
+    # Calculate overall status
+    total_tests = report["summary"]["passed"] + report["summary"]["failed"] + report["summary"]["warnings"]
+    report["summary"]["total_tests"] = total_tests
+    report["summary"]["pass_rate"] = f"{(report['summary']['passed'] / total_tests * 100):.1f}%" if total_tests > 0 else "0%"
+
+    if report["summary"]["failed"] == 0:
+        report["overall_status"] = "HEALTHY" if report["summary"]["warnings"] == 0 else "DEGRADED"
+    else:
+        report["overall_status"] = "CRITICAL"
+
+    return report
 
 
 class HomeScreen(Screen):
@@ -572,26 +797,45 @@ class SettingsScreen(Screen):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.rect = None
         self.build_ui()
+
+    def _update_rect(self, instance, value):
+        """Update background rectangle size."""
+        if self.rect:
+            self.rect.size = instance.size
+            self.rect.pos = instance.pos
 
     def build_ui(self):
         """Build settings UI."""
         layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
 
-        # Header
+        # Set dark futuristic background
+        from kivy.graphics import Color, Rectangle
+        with layout.canvas.before:
+            Color(0.05, 0.05, 0.08, 1)
+            self.rect = Rectangle(size=layout.size, pos=layout.pos)
+            layout.bind(size=self._update_rect, pos=self._update_rect)
+
+        # Header with futuristic styling
         header = BoxLayout(size_hint=(1, 0.1))
         back_btn = Button(
-            text='← Back',
+            text='◂ BACK',
             size_hint=(0.3, 1),
-            on_press=self.go_back
+            on_press=self.go_back,
+            background_color=(0.15, 0.15, 0.25, 1),
+            background_normal='',
+            color=(0.7, 0.8, 1, 1),
+            bold=True
         )
         header.add_widget(back_btn)
 
         title = Label(
-            text='⚙️ Settings',
+            text='⚙ SETTINGS',
             size_hint=(0.7, 1),
-            font_size='20sp',
-            bold=True
+            font_size='22sp',
+            bold=True,
+            color=(0, 0.9, 1, 1)
         )
         header.add_widget(title)
         layout.add_widget(header)
@@ -601,29 +845,39 @@ class SettingsScreen(Screen):
         settings_box = BoxLayout(orientation='vertical', spacing=15, size_hint_y=None, padding=10)
         settings_box.bind(minimum_height=settings_box.setter('height'))
 
-        # Continuity toggle
+        # Continuity toggle with futuristic styling
+        cont_status = "ACTIVE" if ENGINE.settings.continuity_enabled else "OFFLINE"
+        cont_color = (0, 1, 0.6, 1) if ENGINE.settings.continuity_enabled else (0.9, 0.3, 0.3, 1)
         cont_label = Label(
-            text=f'Continuity: {"ON" if ENGINE.settings.continuity_enabled else "OFF"}',
+            text=f'▸ CONTINUITY: {cont_status}',
             size_hint=(1, None),
             height=40,
-            font_size='16sp'
+            font_size='16sp',
+            color=cont_color,
+            bold=True
         )
         settings_box.add_widget(cont_label)
 
         toggle_cont_btn = Button(
-            text='Toggle Continuity',
+            text='TOGGLE CONTINUITY',
             size_hint=(1, None),
             height=50,
-            on_press=lambda x: self.toggle_continuity(cont_label)
+            on_press=lambda x: self.toggle_continuity(cont_label),
+            background_color=(0.1, 0.3, 0.5, 1),
+            background_normal='',
+            color=(0, 0.85, 1, 1),
+            bold=True
         )
         settings_box.add_widget(toggle_cont_btn)
 
-        # Injection strength slider
+        # Injection strength slider with futuristic styling
         strength_label = Label(
-            text=f'Injection Strength: {ENGINE.settings.injection_strength}/10',
+            text=f'▸ INJECTION STRENGTH: {ENGINE.settings.injection_strength}/10',
             size_hint=(1, None),
             height=40,
-            font_size='16sp'
+            font_size='16sp',
+            color=(0.7, 0.85, 1, 1),
+            bold=True
         )
         settings_box.add_widget(strength_label)
 
@@ -637,52 +891,89 @@ class SettingsScreen(Screen):
         strength_slider.bind(value=lambda instance, value: self.update_strength(value, strength_label))
         settings_box.add_widget(strength_slider)
 
-        # Platform isolation (premium)
-        iso_text = 'Platform Isolation: ' + ('ON' if ENGINE.settings.platform_isolation_mode else 'OFF')
+        # Platform isolation (premium) with futuristic styling
+        iso_status = 'ON' if ENGINE.settings.platform_isolation_mode else 'OFF'
+        iso_color = (1, 0.8, 0, 1) if ENTITLEMENTS.is_premium() else (0.5, 0.5, 0.6, 1)
+        iso_text = f'▸ PLATFORM ISOLATION: {iso_status}'
         if not ENTITLEMENTS.is_premium():
-            iso_text += ' (Premium only)'
+            iso_text += ' [PREMIUM]'
 
         iso_label = Label(
             text=iso_text,
             size_hint=(1, None),
             height=40,
-            font_size='16sp'
+            font_size='16sp',
+            color=iso_color,
+            bold=True
         )
         settings_box.add_widget(iso_label)
 
         toggle_iso_btn = Button(
-            text='Toggle Platform Isolation',
+            text='TOGGLE ISOLATION',
             size_hint=(1, None),
             height=50,
             disabled=not ENTITLEMENTS.is_premium(),
-            on_press=lambda x: self.toggle_isolation(iso_label)
+            on_press=lambda x: self.toggle_isolation(iso_label),
+            background_color=(0.1, 0.3, 0.5, 1) if ENTITLEMENTS.is_premium() else (0.15, 0.15, 0.2, 1),
+            background_normal='',
+            color=(0, 0.85, 1, 1) if ENTITLEMENTS.is_premium() else (0.4, 0.4, 0.5, 1),
+            bold=True
         )
         settings_box.add_widget(toggle_iso_btn)
 
-        # Clear data button
+        # Clear data button with futuristic styling
         clear_btn = Button(
-            text='🗑️ Clear All Data',
+            text='🗑 CLEAR ALL DATA',
             size_hint=(1, None),
             height=50,
-            background_color=(0.9, 0.3, 0.3, 1),
+            background_color=(0.8, 0.2, 0.2, 1),
+            background_normal='',
+            color=(1, 1, 1, 1),
+            bold=True,
             on_press=self.clear_data
         )
         settings_box.add_widget(clear_btn)
 
-        # Stats
+        # Diagnostic button with futuristic styling
+        diagnostic_btn = Button(
+            text='🔍 RUN DIAGNOSTICS',
+            size_hint=(1, None),
+            height=50,
+            background_color=(0.1, 0.5, 0.3, 1),
+            background_normal='',
+            color=(0, 1, 0.6, 1),
+            bold=True,
+            on_press=self.run_diagnostics
+        )
+        settings_box.add_widget(diagnostic_btn)
+
+        # Diagnostic results display
+        self.diagnostic_label = Label(
+            text='',
+            size_hint=(1, None),
+            height=0,
+            font_size='12sp',
+            markup=True
+        )
+        settings_box.add_widget(self.diagnostic_label)
+
+        # Stats with futuristic styling
         stats = ENGINE.get_stats()
-        stats_text = f"""
-Stats:
-• Continuity: {"Enabled" if stats['enabled'] else "Disabled"}
-• Injection Strength: {stats['injection_strength']}/10
-• Cross-platform memories: {stats['cross_platform_memories']}
-• Platform isolation: {"Yes" if stats['platform_isolation'] else "No"}
+        stats_text = f"""[b]━━━ SYSTEM STATUS ━━━[/b]
+
+▸ Continuity: {"ENABLED" if stats['enabled'] else "DISABLED"}
+▸ Injection Strength: {stats['injection_strength']}/10
+▸ Cross-platform memories: {stats['cross_platform_memories']}
+▸ Platform isolation: {"YES" if stats['platform_isolation'] else "NO"}
         """
         stats_label = Label(
             text=stats_text.strip(),
             size_hint=(1, None),
             height=150,
-            font_size='12sp'
+            font_size='13sp',
+            color=(0.7, 0.8, 0.9, 1),
+            markup=True,
+            bold=True
         )
         settings_box.add_widget(stats_label)
 
@@ -699,25 +990,119 @@ Stats:
         """Toggle continuity on/off."""
         new_value = not ENGINE.settings.continuity_enabled
         ENGINE.update_settings(continuity_enabled=new_value)
-        label.text = f'Continuity: {"ON" if new_value else "OFF"}'
+        cont_status = "ACTIVE" if new_value else "OFFLINE"
+        cont_color = (0, 1, 0.6, 1) if new_value else (0.9, 0.3, 0.3, 1)
+        label.text = f'▸ CONTINUITY: {cont_status}'
+        label.color = cont_color
 
     def update_strength(self, value, label):
         """Update injection strength."""
         strength = int(value)
         ENGINE.update_settings(injection_strength=strength)
-        label.text = f'Injection Strength: {strength}/10'
+        label.text = f'▸ INJECTION STRENGTH: {strength}/10'
 
     def toggle_isolation(self, label):
         """Toggle platform isolation."""
         if ENTITLEMENTS.is_premium():
             new_value = not ENGINE.settings.platform_isolation_mode
             ENGINE.update_settings(platform_isolation_mode=new_value)
-            label.text = f'Platform Isolation: {"ON" if new_value else "OFF"}'
+            label.text = f'▸ PLATFORM ISOLATION: {"ON" if new_value else "OFF"}'
 
     def clear_data(self, instance):
         """Clear all continuity data."""
         ENGINE.clear_all_data()
         print("[UDAC] All data cleared!")
+
+    def run_diagnostics(self, instance):
+        """Run comprehensive diagnostics and display results."""
+        print("[UDAC] Running diagnostics...")
+
+        # Run diagnostics
+        report = run_diagnostics()
+
+        # Save to file
+        try:
+            # Try to get storage directory
+            try:
+                from platformdirs import user_data_dir
+                storage_dir = user_data_dir("UDAC Portal", "Sunni")
+            except ImportError:
+                import tempfile
+                storage_dir = os.path.join(tempfile.gettempdir(), "udac_portal")
+
+            os.makedirs(storage_dir, exist_ok=True)
+            diagnostic_file = os.path.join(storage_dir, f"diagnostics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+
+            with open(diagnostic_file, 'w') as f:
+                json.dump(report, f, indent=2)
+
+            print(f"[UDAC] Diagnostic report saved to: {diagnostic_file}")
+            file_saved = True
+            file_path = diagnostic_file
+        except Exception as e:
+            print(f"[UDAC] Failed to save diagnostic file: {e}")
+            file_saved = False
+            file_path = None
+
+        # Display summary
+        status = report["overall_status"]
+        summary = report["summary"]
+
+        # Color codes for status
+        if status == "HEALTHY":
+            status_color = "00ff99"
+        elif status == "DEGRADED":
+            status_color = "ffaa00"
+        else:
+            status_color = "ff4444"
+
+        # Build summary text
+        summary_text = f"""[b]━━━ DIAGNOSTIC REPORT ━━━[/b]
+
+[color={status_color}]Status: {status}[/color]
+
+[b]Test Summary:[/b]
+✓ Passed: {summary['passed']}
+⚠ Warnings: {summary['warnings']}
+✗ Failed: {summary['failed']}
+━━━━━━━━━━━━
+Total: {summary['total_tests']} tests
+Pass Rate: {summary['pass_rate']}
+
+"""
+
+        # Add key test results
+        if "jnius" in report["test_results"]:
+            jnius_status = report["test_results"]["jnius"]["status"]
+            jnius_icon = "✓" if jnius_status == "PASS" else "⚠" if jnius_status == "WARN" else "✗"
+            summary_text += f"{jnius_icon} WebView/jnius: {jnius_status}\n"
+
+        if "android_classes" in report["test_results"]:
+            android_status = report["test_results"]["android_classes"]["status"]
+            android_icon = "✓" if android_status == "PASS" else "⊘" if android_status == "SKIP" else "✗"
+            summary_text += f"{android_icon} Android Classes: {android_status}\n"
+
+        if "platform_registry" in report["test_results"]:
+            platform_data = report["test_results"]["platform_registry"]
+            if platform_data["status"] == "PASS":
+                summary_text += f"✓ Platforms: {platform_data['enabled_platforms']}/{platform_data['total_platforms']} enabled\n"
+
+        if "continuity_engine" in report["test_results"]:
+            cont_data = report["test_results"]["continuity_engine"]
+            if cont_data["status"] == "PASS":
+                cont_status = "ON" if cont_data["enabled"] else "OFF"
+                summary_text += f"✓ Continuity: {cont_status} (strength: {cont_data['injection_strength']})\n"
+
+        if file_saved:
+            summary_text += f"\n[b]Full report saved:[/b]\n{file_path}"
+        else:
+            summary_text += f"\n[color=ff4444]Could not save report file[/color]"
+
+        # Update label
+        self.diagnostic_label.text = summary_text
+        self.diagnostic_label.height = 400
+
+        print("[UDAC] Diagnostics complete!")
 
 
 class UDACPortalApp(App):
