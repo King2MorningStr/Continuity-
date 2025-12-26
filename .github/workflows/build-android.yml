@@ -78,16 +78,16 @@ jobs:
             zlib1g-dev \
             libncurses5-dev \
             libncursesw5-dev \
-            libtinfo5-dev \
             cmake \
             libffi-dev \
             libssl-dev \
             build-essential \
             ccache \
             libltdl-dev \
-            libffi-dev \
-            libssl-dev \
             python3-dev
+
+          # Try to install libtinfo5 packages (may not be available on Ubuntu 22.04+)
+          sudo apt-get install -y libtinfo5 libtinfo5-dev || echo "libtinfo5 packages not available, continuing without them"
 
       # -----------------------------
       # Install Buildozer and Cython
