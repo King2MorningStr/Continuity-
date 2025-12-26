@@ -41,9 +41,17 @@ class KivyPython3Recipe(KivyRecipe):
 
             original_content = content
 
+            # Fix ALL 'long' type issues
+
+            # Pattern 1a: isinstance(arg, (int, long)) -> isinstance(arg, int)
+            content = re.sub(r'\bisinstance\(([^,]+),\s*\(\s*int\s*,\s*long\s*\)\)', r'isinstance(\1, int)', content)
+
+            # Pattern 1b: isinstance(arg, (long, int)) -> isinstance(arg, int)
+            content = re.sub(r'\bisinstance\(([^,]+),\s*\(\s*long\s*,\s*int\s*\)\)', r'isinstance(\1, int)', content)
+
             # Remove __long__ methods entirely (not needed in Python 3)
             content = re.sub(
-                r'^\s*def __long__\(self\):.*?^(?=\s*def\s|\s*cdef\s|$)',
+                r'^\s*def __long__\(self\):.*?(?=^\s*(?:def|cdef|cpdef)\s|\Z)',
                 '',
                 content,
                 flags=re.MULTILINE | re.DOTALL
