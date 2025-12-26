@@ -15,7 +15,7 @@ formal_name = "UDAC Portal"
 license = "MIT"
 sources = ["udac_portal"]
 requires = [
-    "toga>=0.4.0,<0.5.0",
+    "toga-core>=0.4.0,<0.5.0",
     "platformdirs>=4.0.0",
 ]
 
