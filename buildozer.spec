@@ -32,8 +32,8 @@ version = 1.0.2
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-# Absolute minimal build - just Kivy
-requirements = python3,kivy
+# Override pyjnius with git master version (has Python 3 support)
+requirements = python3,kivy,https://github.com/kivy/pyjnius/archive/refs/heads/master.zip
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -264,8 +264,8 @@ android.allow_backup = True
 #p4a.fork = kivy
 
 # (str) python-for-android branch to use, defaults to master
-# Use stable master branch for reliable builds
-#p4a.branch = master
+# Use master branch with latest HEAD (should have Python 3 fixes)
+p4a.branch = master
 
 # (str) python-for-android specific commit to use, defaults to HEAD, must be within p4a.branch
 #p4a.commit = HEAD
