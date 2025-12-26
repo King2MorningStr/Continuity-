@@ -32,8 +32,8 @@ version = 1.0.2
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-# Use default p4a Python 3 version for best compatibility
-requirements = python3,kivy==2.2.1,android,pyjnius,platformdirs
+# Minimal requirements - let p4a handle dependencies automatically
+requirements = python3,kivy==2.2.1,android,platformdirs
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
