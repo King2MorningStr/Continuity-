@@ -32,8 +32,8 @@ version = 1.0.2
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-# Override pyjnius with git master version (has Python 3 support)
-requirements = python3,kivy,https://github.com/kivy/pyjnius/archive/refs/heads/master.zip
+# Using custom p4a recipe for pyjnius with Python 3 patch
+requirements = python3,kivy
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -274,7 +274,8 @@ p4a.branch = master
 #p4a.source_dir =
 
 # (str) The directory in which python-for-android should look for your own build recipes (if any)
-#p4a.local_recipes =
+# Custom pyjnius recipe with Python 3 patch
+p4a.local_recipes = p4a-recipes
 
 # (str) Filename to the hook for p4a
 #p4a.hook =
