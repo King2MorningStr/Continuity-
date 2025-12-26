@@ -5,7 +5,7 @@ build-backend = "briefcase.build"
 [tool.briefcase]
 project_name = "UDAC Portal"
 bundle = "com.udacportal"
-version = "1.0.0"
+version = "1.0.2"
 author = "Sunni"
 description = "A browser with a brain for AI platforms"
 license = "MIT"
