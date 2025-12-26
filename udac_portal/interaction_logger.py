@@ -12,15 +12,21 @@ import hashlib
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Any
 from pathlib import Path
-from platformdirs import user_data_dir
 from collections import defaultdict
 import csv
 
+# Try to import platformdirs, fallback to temp directory
+try:
+    from platformdirs import user_data_dir
+    APP_NAME = "UDAC Portal"
+    APP_AUTHOR = "Sunni"
+    STORAGE_DIR = user_data_dir(APP_NAME, APP_AUTHOR)
+except ImportError:
+    import tempfile
+    STORAGE_DIR = os.path.join(tempfile.gettempdir(), "udac_portal")
+
 from udac_portal.entitlement_engine import ENTITLEMENTS
 
-APP_NAME = "UDAC Portal"
-APP_AUTHOR = "Sunni"
-STORAGE_DIR = user_data_dir(APP_NAME, APP_AUTHOR)
 LOGS_DIR = os.path.join(STORAGE_DIR, "logs")
 try:
     Path(LOGS_DIR).mkdir(parents=True, exist_ok=True)
