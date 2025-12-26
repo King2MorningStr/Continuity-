@@ -4,7 +4,9 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - GPT-SEPH
+      - claude/fix-crashes-production-ready-sohGx
+      - main
+      - master
 
 jobs:
   build-android:
@@ -18,28 +20,25 @@ jobs:
         uses: actions/checkout@v4
 
       # -----------------------------
-      # Unpack project ZIP and find root via pyproject.toml
+      # Verify project structure (no unzip needed - all in repo)
       # -----------------------------
-      - name: Unpack UDAC project and detect root
+      - name: Verify project structure
         run: |
           set -e
 
-          ZIP_FILE=$(ls *.zip | head -n 1)
-          if [ -z "$ZIP_FILE" ]; then
-            echo "No project ZIP found"
+          if [ ! -f "pyproject.toml" ]; then
+            echo "ERROR: pyproject.toml not found in repo root"
             exit 1
           fi
 
-          unzip -o "$ZIP_FILE"
-
-          PROJECT_ROOT=$(find . -maxdepth 2 -name pyproject.toml -exec dirname {} \; | head -n 1)
-          if [ -z "$PROJECT_ROOT" ]; then
-            echo "pyproject.toml not found after unzip"
+          if [ ! -d "udac_portal" ]; then
+            echo "ERROR: udac_portal directory not found"
             exit 1
           fi
 
-          echo "PROJECT_ROOT=$PROJECT_ROOT" >> $GITHUB_ENV
-          echo "Using PROJECT_ROOT=$PROJECT_ROOT"
+          echo "✅ Project structure verified"
+          echo "PROJECT_ROOT=." >> $GITHUB_ENV
+          echo "Using PROJECT_ROOT=."
 
       # -----------------------------
       # Python setup
@@ -82,11 +81,20 @@ jobs:
           pip install briefcase
 
       # -----------------------------
+      # Show build info
+      # -----------------------------
+      - name: Show build info
+        run: |
+          echo "📦 Building UDAC Portal v1.0.2 (Circular Import Fix)"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          cat pyproject.toml | grep -A 3 "\[tool.briefcase\]"
+
+      # -----------------------------
       # Briefcase: create Android project
       # -----------------------------
       - name: Briefcase create Android
         run: |
-          cd "$PROJECT_ROOT"
           briefcase create android --no-input
 
       # -----------------------------
@@ -94,7 +102,6 @@ jobs:
       # -----------------------------
       - name: Briefcase build Android
         run: |
-          cd "$PROJECT_ROOT"
           briefcase build android
 
       # -----------------------------
@@ -102,7 +109,6 @@ jobs:
       # -----------------------------
       - name: Briefcase package Android APK
         run: |
-          cd "$PROJECT_ROOT"
           briefcase package android --adhoc
 
       # -----------------------------
