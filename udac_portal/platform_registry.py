@@ -9,11 +9,17 @@ from typing import Optional, Dict, List
 import json
 import os
 from pathlib import Path
-from platformdirs import user_data_dir
 
-APP_NAME = "UDAC Portal"
-APP_AUTHOR = "Sunni"
-STORAGE_DIR = user_data_dir(APP_NAME, APP_AUTHOR)
+# Try to import platformdirs, fallback to temp directory
+try:
+    from platformdirs import user_data_dir
+    APP_NAME = "UDAC Portal"
+    APP_AUTHOR = "Sunni"
+    STORAGE_DIR = user_data_dir(APP_NAME, APP_AUTHOR)
+except ImportError:
+    # Fallback when platformdirs not available
+    import tempfile
+    STORAGE_DIR = os.path.join(tempfile.gettempdir(), "udac_portal")
 try:
     Path(STORAGE_DIR).mkdir(parents=True, exist_ok=True)
 except Exception:

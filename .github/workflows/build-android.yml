@@ -1,4 +1,4 @@
-name: Build UDAC Portal Android APK
+name: Build UDAC Portal Android APK (Kivy)
 
 on:
   workflow_dispatch:
@@ -20,14 +20,19 @@ jobs:
         uses: actions/checkout@v4
 
       # -----------------------------
-      # Verify project structure (no unzip needed - all in repo)
+      # Verify project structure
       # -----------------------------
       - name: Verify project structure
         run: |
           set -e
 
-          if [ ! -f "pyproject.toml" ]; then
-            echo "ERROR: pyproject.toml not found in repo root"
+          if [ ! -f "buildozer.spec" ]; then
+            echo "ERROR: buildozer.spec not found in repo root"
+            exit 1
+          fi
+
+          if [ ! -f "main.py" ]; then
+            echo "ERROR: main.py not found in repo root"
             exit 1
           fi
 
@@ -36,9 +41,7 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Project structure verified"
-          echo "PROJECT_ROOT=." >> $GITHUB_ENV
-          echo "Using PROJECT_ROOT=."
+          echo "✅ Project structure verified (Kivy/Buildozer)"
 
       # -----------------------------
       # Python setup
@@ -46,7 +49,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.10"
 
       # -----------------------------
       # Java setup (required for Android)
@@ -58,58 +61,85 @@ jobs:
           java-version: "17"
 
       # -----------------------------
-      # System dependencies
+      # System dependencies (Buildozer requirements)
       # -----------------------------
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            python3-pip \
+            autoconf \
+            libtool \
             pkg-config \
-            python3-dev \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            cmake \
             libffi-dev \
             libssl-dev \
-            unzip \
-            zip
+            build-essential \
+            ccache \
+            libltdl-dev \
+            python3-dev
+
+          # Try to install libtinfo5 packages (may not be available on Ubuntu 22.04+)
+          sudo apt-get install -y libtinfo5 libtinfo5-dev || echo "libtinfo5 packages not available, continuing without them"
 
       # -----------------------------
-      # Python dependencies
+      # Install Buildozer and Cython
       # -----------------------------
-      - name: Install Python tooling
+      - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
-          pip install briefcase
+          pip install --upgrade buildozer cython
+
+      # -----------------------------
+      # Accept Android SDK licenses
+      # -----------------------------
+      - name: Accept Android licenses
+        run: |
+          yes | buildozer android debug || true
 
       # -----------------------------
       # Show build info
       # -----------------------------
       - name: Show build info
         run: |
-          echo "📦 Building UDAC Portal v1.0.2 (Circular Import Fix)"
+          echo "📦 Building UDAC Portal v1.0.2 (Kivy)"
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
-          cat pyproject.toml | grep -A 3 "\[tool.briefcase\]"
+          echo ""
+          echo "Buildozer version:"
+          buildozer --version
+          echo ""
+          echo "Config:"
+          cat buildozer.spec | grep -E "^(title|package|version|requirements)" | head -10
 
       # -----------------------------
-      # Briefcase: create Android project
+      # Build APK with Buildozer
       # -----------------------------
-      - name: Briefcase create Android
+      - name: Build APK
         run: |
-          briefcase create android --no-input
+          buildozer android debug
 
       # -----------------------------
-      # Briefcase: build Android
+      # Find and display APK info
       # -----------------------------
-      - name: Briefcase build Android
+      - name: APK info
         run: |
-          briefcase build android
-
-      # -----------------------------
-      # Briefcase: package APK
-      # -----------------------------
-      - name: Briefcase package Android APK
-        run: |
-          briefcase package android --adhoc
+          APK_PATH=$(find bin -name "*.apk" -type f | head -1)
+          if [ -f "$APK_PATH" ]; then
+            echo "✅ Build successful!"
+            echo "APK: $APK_PATH"
+            ls -lh "$APK_PATH"
+          else
+            echo "❌ APK not found!"
+            exit 1
+          fi
 
       # -----------------------------
       # Upload APK artifact
@@ -117,8 +147,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-         name: udac-portal-apk
-         path: |
-          **/app-debug.apk
-          **/app-release.apk
-          **/outputs/apk/**/*.apk
+         name: udac-portal-kivy-apk
+         path: bin/*.apk
