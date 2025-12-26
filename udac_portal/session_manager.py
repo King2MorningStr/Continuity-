@@ -10,8 +10,8 @@ from typing import Dict, Optional, Any, Callable
 from dataclasses import dataclass, field
 
 from udac_portal.platform_registry import REGISTRY, AiWebPlatform
-from udac_portal.continuity_engine import ENGINE, ContinuityPayload
-from udac_portal.interaction_logger import LOGGER
+# Lazy imports to avoid circular dependencies
+from udac_portal.continuity_engine import ContinuityPayload
 
 
 @dataclass
@@ -31,17 +31,35 @@ class SessionManager:
     Central traffic controller for UDAC.
     Manages platform sessions and routes events.
     """
-    
+
     def __init__(self):
         self._lock = threading.RLock()
         self.active_sessions: Dict[str, ActiveSession] = {}
         self.current_platform_id: Optional[str] = None
-        
+
         # Callbacks for UI updates
         self._on_ai_message_callbacks: list = []
         self._on_continuity_update_callbacks: list = []
-        
+
+        # Lazy-loaded instances (avoid circular imports)
+        self._engine = None
+        self._logger = None
+
         print("[SessionManager] Initialized")
+
+    def _get_engine(self):
+        """Lazy load ENGINE to avoid circular import."""
+        if self._engine is None:
+            from udac_portal.continuity_engine import ENGINE
+            self._engine = ENGINE
+        return self._engine
+
+    def _get_logger(self):
+        """Lazy load LOGGER to avoid circular import."""
+        if self._logger is None:
+            from udac_portal.interaction_logger import LOGGER
+            self._logger = LOGGER
+        return self._logger
     
     def start_session(self, platform_id: str) -> ActiveSession:
         """Start or resume a session with a platform."""
@@ -78,10 +96,10 @@ class SessionManager:
             session = self.start_session(platform_id)
             
             # Get enriched input from continuity engine
-            payload = ENGINE.enrich_input(platform_id, raw_user_text)
-            
+            payload = self._get_engine().enrich_input(platform_id, raw_user_text)
+
             # Log the interaction
-            LOGGER.log_user_input(
+            self._get_logger().log_user_input(
                 platform_id=platform_id,
                 raw=raw_user_text,
                 enriched=payload.final_prompt_text,
@@ -105,7 +123,7 @@ class SessionManager:
         This is "ground truth" of what actually got sent.
         """
         with self._lock:
-            LOGGER.log_platform_user_echo(platform_id, text)
+            self._get_logger().log_platform_user_echo(platform_id, text)
     
     def on_platform_ai_message(self, platform_id: str, text: str):
         """
@@ -116,10 +134,10 @@ class SessionManager:
             thread_id = session.thread_id if session else None
             
             # Log it
-            LOGGER.log_ai_output(platform_id, text, thread_id)
-            
+            self._get_logger().log_ai_output(platform_id, text, thread_id)
+
             # Feed to continuity engine
-            ENGINE.record_output(platform_id, text)
+            self._get_engine().record_output(platform_id, text)
             
             # Update session stats
             if session:
@@ -135,10 +153,10 @@ class SessionManager:
         """
         with self._lock:
             # Log it
-            LOGGER.log_live_transcript_chunk(platform_id, text)
-            
+            self._get_logger().log_live_transcript_chunk(platform_id, text)
+
             # Feed to continuity engine (transcripts count as both input and context)
-            ENGINE.record_output(platform_id, text)
+            self._get_engine().record_output(platform_id, text)
     
     def on_live_mode_changed(self, platform_id: str, active: bool):
         """
@@ -148,8 +166,8 @@ class SessionManager:
             session = self.active_sessions.get(platform_id)
             if session:
                 session.is_live_mode = active
-            
-            LOGGER.log_live_mode_state(platform_id, active)
+
+            self._get_logger().log_live_mode_state(platform_id, active)
     
     # =========================================================================
     # CALLBACK REGISTRATION
@@ -207,7 +225,7 @@ class SessionManager:
     def get_continuity_info(self, platform_id: str) -> Dict[str, Any]:
         """Get continuity info for a platform."""
         session = self.active_sessions.get(platform_id)
-        engine_stats = ENGINE.get_stats()
+        engine_stats = self._get_engine().get_stats()
         
         return {
             "enabled": engine_stats["enabled"],
@@ -220,7 +238,7 @@ class SessionManager:
     def shutdown(self):
         """Clean shutdown."""
         with self._lock:
-            LOGGER.shutdown()
+            self._get_logger().shutdown()
             self.active_sessions.clear()
 
 
