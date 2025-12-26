@@ -36,19 +36,29 @@ class UDACPortalApp(toga.App):
     
     def startup(self):
         """Initialize the application."""
+        print("[UDAC] 🚀 Starting app initialization...")
+        print(f"[UDAC] Crash log location: {_UDAC_CRASH_LOG_PATH}")
+
+        print("[UDAC] Creating main window...")
         self.main_window = toga.MainWindow(title=self.formal_name)
         self.on_exit = self.cleanup
-        
+
         # State
         self.current_platform = None
         self.webview = None
-        
+
+        print("[UDAC] Building home screen...")
         # Build UI
         self.create_home_screen()
-        
+
+        print("[UDAC] Setting window content...")
         # Start with home
         self.main_window.content = self.home_box
+
+        print("[UDAC] Showing window...")
         self.main_window.show()
+
+        print("[UDAC] ✅ App started successfully!")
     
     def cleanup(self, app):
         """Cleanup on exit."""
