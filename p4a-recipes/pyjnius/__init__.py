@@ -35,13 +35,17 @@ class PyjniusPython3Recipe(PyjniusRecipe):
             original_content = content
 
             # Fix ALL 'long' type issues - replace all isinstance checks
-            # Pattern 1: isinstance(arg, long)
+
+            # Pattern 1: isinstance(arg, (int, long)) -> isinstance(arg, int)
+            content = re.sub(r'\bisinstance\(([^,]+),\s*\(\s*int\s*,\s*long\s*\)\)', r'isinstance(\1, int)', content)
+
+            # Pattern 2: isinstance(arg, long)
             content = re.sub(r'\bisinstance\([^,]+,\s*long\)', 'False', content)
 
-            # Pattern 2: or isinstance(arg, long) - just remove the check
+            # Pattern 3: or isinstance(arg, long) - just remove the check
             content = re.sub(r'\s+or\s+isinstance\([^,]+,\s*long\)', '', content)
 
-            # Pattern 3: isinstance(arg, int) or (isinstance(arg, long) and ...) - simplify to just int check
+            # Pattern 4: isinstance(arg, int) or (isinstance(arg, long) and ...) - simplify to just int check
             content = re.sub(
                 r'isinstance\(([^,]+),\s*int\)\s+or\s+\(\s*isinstance\(\1,\s*long\)[^)]*\)',
                 r'isinstance(\1, int)',
