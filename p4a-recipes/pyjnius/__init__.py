@@ -1,10 +1,11 @@
 from pythonforandroid.recipes.pyjnius import PyjniusRecipe
+import re
 
 
 class PyjniusPython3Recipe(PyjniusRecipe):
     """
     Custom pyjnius recipe with Python 3 compatibility patch.
-    Fixes the 'long' type issue in jnius_utils.pxi.
+    Fixes ALL 'long' type issues in jnius_utils.pxi.
     """
 
     def prebuild_arch(self, arch):
@@ -20,16 +21,30 @@ class PyjniusPython3Recipe(PyjniusRecipe):
             with open(utils_file, 'r') as f:
                 content = f.read()
 
-            # Fix the 'long' type issue - remove Python 2 long check
-            content = content.replace(
-                "if isinstance(arg, int) or (\n                    (isinstance(arg, long) and arg < 2147483648)):",
-                "if isinstance(arg, int):"
+            original_content = content
+
+            # Fix ALL 'long' type issues - replace all isinstance checks
+            # Pattern 1: isinstance(arg, long)
+            content = re.sub(r'\bisinstance\([^,]+,\s*long\)', 'False', content)
+
+            # Pattern 2: or isinstance(arg, long) - just remove the check
+            content = re.sub(r'\s+or\s+isinstance\([^,]+,\s*long\)', '', content)
+
+            # Pattern 3: isinstance(arg, int) or (isinstance(arg, long) and ...) - simplify to just int check
+            content = re.sub(
+                r'isinstance\(([^,]+),\s*int\)\s+or\s+\(\s*isinstance\(\1,\s*long\)[^)]*\)',
+                r'isinstance(\1, int)',
+                content
             )
 
-            with open(utils_file, 'w') as f:
-                f.write(content)
-
-            print("[UDAC] Python 3 patch applied successfully!")
+            if content != original_content:
+                with open(utils_file, 'w') as f:
+                    f.write(content)
+                print("[UDAC] Python 3 patch applied successfully!")
+                print(f"[UDAC] Replaced {original_content.count('long') - content.count('long')} occurrences of 'long'")
+            else:
+                print("[UDAC] No 'long' types found - already patched or different version")
 
 
 recipe = PyjniusPython3Recipe()
+
