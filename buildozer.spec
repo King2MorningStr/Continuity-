@@ -32,8 +32,8 @@ version = 1.0.2
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-# Using pyjnius 1.5.0+ for Python 3.10+ compatibility
-requirements = python3==3.10.15,kivy==2.2.1,android,pyjnius==1.6.1,platformdirs
+# Let p4a use its own pyjnius recipe (has Python 3 patches)
+requirements = python3,kivy==2.2.1,android,pyjnius,platformdirs
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -264,7 +264,8 @@ android.allow_backup = True
 #p4a.fork = kivy
 
 # (str) python-for-android branch to use, defaults to master
-#p4a.branch = master
+# Using develop branch for better Python 3 and pyjnius support
+p4a.branch = develop
 
 # (str) python-for-android specific commit to use, defaults to HEAD, must be within p4a.branch
 #p4a.commit = HEAD
