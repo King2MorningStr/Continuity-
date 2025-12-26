@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="formal_name">UDAC Portal</string>
+    <string name="app_name">udac_portal</string>
+    <string name="app_description">A browser with a brain for AI platforms</string>
+</resources>
