@@ -408,3 +408,32 @@ warn_on_root = 1
 #    Then, invoke the command line with the "demo" profile:
 #
 #buildozer --profile demo android debug
+
+#
+# Buildozer configuration
+#
+
+[buildozer]
+
+# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
+log_level = 2
+
+# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
+warn_on_root = 1
+
+# (str) Path to build artifact storage, absolute or relative to spec file
+# build_dir = ./.buildozer
+
+# (str) Path to build output (i.e. .apk, .aab, .ipa) storage
+# bin_dir = ./bin
+
+#    -----------------------------------------------------------------------------
+#    Android Gradle options (helps with CI/memory issues)
+#
+
+# Gradle daemon settings for CI environments
+# These help prevent OOM errors in GitHub Actions
+android.gradle_options = -Xmx2048m, -XX:MaxPermSize=512m, org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m
+
+# Skip lint checks to speed up build
+android.skip_lint = true
