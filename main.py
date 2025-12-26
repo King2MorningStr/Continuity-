@@ -32,91 +32,140 @@ from udac_portal.ivm_resilience import ivm_resilient, ivm_safe_call, RESILIENCE
 print(f"[UDAC] Crash log location: {_UDAC_CRASH_LOG_PATH}")
 print("[UDAC] 🚀 Starting UDAC Portal (Kivy version)...")
 
+# Check if jnius is available (Android-only)
+JNIUS_AVAILABLE = False
+try:
+    from jnius import autoclass
+    JNIUS_AVAILABLE = True
+    print("[UDAC] ✅ jnius available - WebView enabled")
+except ImportError:
+    print("[UDAC] ⚠️ jnius not available - WebView disabled")
+except Exception as e:
+    print(f"[UDAC] ⚠️ jnius import error: {e} - WebView disabled")
+
 
 class HomeScreen(Screen):
     """Home screen with platform selection."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.rect = None
         self.build_ui()
+
+    def _update_rect(self, instance, value):
+        """Update background rectangle size."""
+        if self.rect:
+            self.rect.size = instance.size
+            self.rect.pos = instance.pos
 
     def build_ui(self):
         """Build the home screen UI."""
-        layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        layout = BoxLayout(orientation='vertical', padding=15, spacing=10)
 
-        # Header
+        # Set sleek futuristic dark background
+        from kivy.graphics import Color, Rectangle
+        with layout.canvas.before:
+            Color(0.05, 0.05, 0.08, 1)  # Deep black-blue
+            self.rect = Rectangle(size=layout.size, pos=layout.pos)
+            layout.bind(size=self._update_rect, pos=self._update_rect)
+
+        # Header with futuristic styling
         header = Label(
-            text='🧠 UDAC Portal',
+            text='⚡ UDAC PORTAL',
             size_hint=(1, 0.1),
-            font_size='24sp',
-            bold=True
+            font_size='32sp',
+            bold=True,
+            color=(0, 0.9, 1, 1),  # Bright cyan
+            markup=True
         )
         layout.add_widget(header)
 
         # Tagline
         tagline = Label(
-            text='AI Browser with Continuity',
+            text='━━━ AI CONTINUITY BROWSER ━━━',
             size_hint=(1, 0.05),
-            font_size='12sp'
+            font_size='12sp',
+            color=(0.4, 0.7, 0.9, 1),  # Steel blue
+            bold=True
         )
         layout.add_widget(tagline)
 
-        # Premium indicator
+        # Premium indicator with sharp styling
         tier_text = "PREMIUM" if ENTITLEMENTS.is_premium() else "FREE"
+        tier_color = (1, 0.8, 0, 1) if ENTITLEMENTS.is_premium() else (0.5, 0.5, 0.6, 1)
         self.premium_label = Label(
-            text=f'Tier: {tier_text}',
+            text=f'▸ TIER: {tier_text}',
             size_hint=(1, 0.05),
-            font_size='14sp'
+            font_size='14sp',
+            color=tier_color,
+            bold=True
         )
         layout.add_widget(self.premium_label)
 
         # Toggle premium button
         toggle_btn = Button(
-            text='⭐ Toggle Premium (local)',
+            text='⬆ TOGGLE PREMIUM',
             size_hint=(1, 0.08),
-            on_press=self.toggle_tier
+            on_press=self.toggle_tier,
+            background_color=(0.1, 0.3, 0.5, 1),
+            background_normal='',
+            color=(0, 0.85, 1, 1),
+            bold=True
         )
         layout.add_widget(toggle_btn)
 
-        # Continuity indicator
-        cont_status = "ON" if ENGINE.settings.continuity_enabled else "OFF"
+        # Continuity indicator with modern styling
+        cont_status = "ACTIVE" if ENGINE.settings.continuity_enabled else "OFFLINE"
+        cont_color = (0, 1, 0.6, 1) if ENGINE.settings.continuity_enabled else (0.9, 0.3, 0.3, 1)
         self.continuity_label = Label(
-            text=f'Continuity: {cont_status} | Strength: {ENGINE.settings.injection_strength}/10',
+            text=f'▸ CONTINUITY: {cont_status} | STRENGTH: {ENGINE.settings.injection_strength}/10',
             size_hint=(1, 0.05),
-            font_size='12sp'
+            font_size='12sp',
+            color=cont_color,
+            bold=True
         )
         layout.add_widget(self.continuity_label)
 
         # Settings button
         settings_btn = Button(
-            text='⚙️ Settings',
+            text='⚙ SETTINGS',
             size_hint=(1, 0.08),
-            on_press=self.go_to_settings
+            on_press=self.go_to_settings,
+            background_color=(0.15, 0.15, 0.25, 1),
+            background_normal='',
+            color=(0.7, 0.8, 1, 1),
+            bold=True
         )
         layout.add_widget(settings_btn)
 
-        # Platform grid
+        # Platform grid section header
         platforms_label = Label(
-            text='Select AI Platform',
+            text='━━━━━━ SELECT PLATFORM ━━━━━━',
             size_hint=(1, 0.05),
             font_size='14sp',
-            bold=True
+            bold=True,
+            color=(0.4, 0.7, 0.9, 1)
         )
         layout.add_widget(platforms_label)
 
-        # Platform buttons (scrollable)
+        # Platform buttons (scrollable) with sharp modern design
         scroll = ScrollView(size_hint=(1, 0.54))
-        platform_grid = GridLayout(cols=2, spacing=10, size_hint_y=None, padding=10)
+        platform_grid = GridLayout(cols=2, spacing=15, size_hint_y=None, padding=10)
         platform_grid.bind(minimum_height=platform_grid.setter('height'))
 
         platforms = REGISTRY.get_all_platforms()
         for platform in platforms:
             btn = Button(
-                text=f'{platform.icon}\n{platform.name}',
+                text=f'{platform.icon}\n{platform.name.upper()}',
                 size_hint=(None, None),
-                size=(150, 120),
+                size=(155, 125),
                 disabled=not platform.enabled,
-                on_press=lambda x, p=platform: self.open_platform(p)
+                on_press=lambda x, p=platform: self.open_platform(p),
+                background_color=(0.1, 0.2, 0.4, 1) if platform.enabled else (0.1, 0.1, 0.15, 0.6),
+                background_normal='',
+                color=(0, 0.9, 1, 1) if platform.enabled else (0.4, 0.4, 0.5, 1),
+                font_size='13sp',
+                bold=True
             )
             platform_grid.add_widget(btn)
 
@@ -135,7 +184,9 @@ class HomeScreen(Screen):
             max_context_tokens=min(ENGINE.settings.max_context_tokens, 3000 if ENTITLEMENTS.is_premium() else 1200)
         )
         tier_text = "PREMIUM" if ENTITLEMENTS.is_premium() else "FREE"
-        self.premium_label.text = f'Tier: {tier_text}'
+        tier_color = (1, 0.8, 0, 1) if ENTITLEMENTS.is_premium() else (0.5, 0.5, 0.6, 1)
+        self.premium_label.text = f'▸ TIER: {tier_text}'
+        self.premium_label.color = tier_color
 
     def go_to_settings(self, instance):
         """Navigate to settings screen."""
@@ -156,64 +207,94 @@ class PortalScreen(Screen):
         super().__init__(**kwargs)
         self.current_platform = None
         self.webview = None
+        self.rect = None
         self.build_ui()
+
+    def _update_rect(self, instance, value):
+        """Update background rectangle size."""
+        if self.rect:
+            self.rect.size = instance.size
+            self.rect.pos = instance.pos
 
     def build_ui(self):
         """Build the portal screen UI."""
-        layout = BoxLayout(orientation='vertical', padding=5, spacing=5)
+        layout = BoxLayout(orientation='vertical', padding=8, spacing=8)
+
+        # Set dark futuristic background
+        from kivy.graphics import Color, Rectangle
+        with layout.canvas.before:
+            Color(0.05, 0.05, 0.08, 1)
+            self.rect = Rectangle(size=layout.size, pos=layout.pos)
+            layout.bind(size=self._update_rect, pos=self._update_rect)
 
         # Top bar with back button and platform name
         top_bar = BoxLayout(size_hint=(1, 0.08), spacing=10)
 
         back_btn = Button(
-            text='← Home',
+            text='◂ BACK',
             size_hint=(0.3, 1),
-            on_press=self.go_home
+            on_press=self.go_home,
+            background_color=(0.15, 0.15, 0.25, 1),
+            background_normal='',
+            color=(0.7, 0.8, 1, 1),
+            bold=True
         )
         top_bar.add_widget(back_btn)
 
         self.platform_label = Label(
-            text='Select a platform',
+            text='▸ SELECT PLATFORM',
             size_hint=(0.7, 1),
             font_size='16sp',
-            bold=True
+            bold=True,
+            color=(0, 0.9, 1, 1)
         )
         top_bar.add_widget(self.platform_label)
 
         layout.add_widget(top_bar)
 
-        # WebView placeholder
+        # WebView placeholder with futuristic styling
         self.webview_container = BoxLayout(size_hint=(1, 0.77))
         self.webview_placeholder = Label(
-            text='WebView will load here\n(Android WebView integration)',
-            font_size='14sp'
+            text='━━━ WEBVIEW STANDBY ━━━\n\nSelect a platform to begin',
+            font_size='14sp',
+            color=(0.4, 0.6, 0.8, 1)
         )
         self.webview_container.add_widget(self.webview_placeholder)
         layout.add_widget(self.webview_container)
 
-        # Context indicator
+        # Context indicator with modern styling
         self.context_label = Label(
-            text='Continuity: Ready',
+            text='▸ CONTINUITY: READY',
             size_hint=(1, 0.04),
-            font_size='10sp'
+            font_size='11sp',
+            color=(0, 1, 0.6, 1),
+            bold=True
         )
         layout.add_widget(self.context_label)
 
-        # Input bar
-        input_bar = BoxLayout(size_hint=(1, 0.11), spacing=5)
+        # Input bar with modern styling
+        input_bar = BoxLayout(size_hint=(1, 0.11), spacing=8)
 
         self.input_field = TextInput(
-            hint_text='Type your message...',
+            hint_text='▸ Enter message...',
             multiline=False,
-            size_hint=(0.8, 1)
+            size_hint=(0.75, 1),
+            background_color=(0.1, 0.15, 0.2, 1),
+            foreground_color=(0.9, 0.9, 1, 1),
+            cursor_color=(0, 0.9, 1, 1),
+            font_size='14sp'
         )
         self.input_field.bind(on_text_validate=self.send_message)
         input_bar.add_widget(self.input_field)
 
         send_btn = Button(
-            text='Send',
-            size_hint=(0.2, 1),
-            on_press=self.send_message
+            text='SEND ▸',
+            size_hint=(0.25, 1),
+            on_press=self.send_message,
+            background_color=(0.1, 0.3, 0.5, 1),
+            background_normal='',
+            color=(0, 0.9, 1, 1),
+            bold=True
         )
         input_bar.add_widget(send_btn)
 
@@ -223,14 +304,34 @@ class PortalScreen(Screen):
 
     def load_platform(self, platform):
         """Load a platform into the WebView."""
+        print(f"[UDAC] load_platform called for: {platform.name}")
+
+        # Set platform info first
+        self.current_platform = platform
+        self.platform_label.text = f'▸ {platform.icon} {platform.name.upper()}'
+
+        # Start session
         try:
-            self.current_platform = platform
-            self.platform_label.text = f'{platform.icon} {platform.name}'
-
-            # Start session
             SESSION.start_session(platform.id)
+            print("[UDAC] Session started")
+        except Exception as e:
+            print(f"[UDAC] Session start error: {e}")
 
-            # Load WebView (Android-specific) - may not be available
+        # Check if jnius is available before attempting WebView
+        if not JNIUS_AVAILABLE:
+            print("[UDAC] jnius not available, showing fallback message")
+            self.webview_placeholder.text = (
+                f'━━━ WEBVIEW UNAVAILABLE ━━━\n\n'
+                f'🌐 {platform.name.upper()}\n\n'
+                f'Platform access requires WebView support.\n\n'
+                f'Open in mobile browser:\n{platform.base_url}\n\n'
+                f'(Continuity features disabled)'
+            )
+            return
+
+        # Try to load WebView
+        try:
+            print("[UDAC] Attempting to load WebView...")
             self.load_webview(platform.base_url)
         except Exception as e:
             import traceback
@@ -238,23 +339,26 @@ class PortalScreen(Screen):
             print(traceback.format_exc())
 
             # Show error in UI
-            if hasattr(self, 'webview_placeholder'):
-                self.webview_placeholder.text = f'Error loading platform\n\n{str(e)}\n\nCheck logs for details'
-
-            # Don't crash - just show the error
-            self.current_platform = platform
-            self.platform_label.text = f'{platform.icon} {platform.name} (Error)'
+            self.webview_placeholder.text = (
+                f'━━━ CONNECTION ERROR ━━━\n\n'
+                f'{str(e)}\n\n'
+                f'Use browser:\n{platform.base_url}'
+            )
+            self.platform_label.text = f'▸ {platform.icon} {platform.name.upper()} [ERROR]'
 
     def load_webview(self, url):
         """Load URL in WebView (Android WebView)."""
-        # Try to import jnius - may not be available in initial builds
+        # Defensive check - should not be called if jnius unavailable
+        if not JNIUS_AVAILABLE:
+            print("[UDAC] load_webview called but jnius not available")
+            return
+
+        # Import jnius classes
         try:
             from jnius import autoclass, PythonJavaClass, java_method
-            JNIUS_AVAILABLE = True
-        except ImportError:
-            JNIUS_AVAILABLE = False
-            print("[UDAC] Warning: jnius not available - WebView disabled")
-            self.webview_placeholder.text = f'WebView not available\n\nOpening: {url}\n\nUse mobile browser to access AI platforms'
+        except Exception as e:
+            print(f"[UDAC] Failed to import jnius: {e}")
+            self.webview_placeholder.text = f'WebView import failed\n\n{str(e)}'
             return
 
         try:
@@ -401,9 +505,9 @@ class PortalScreen(Screen):
             component="session_manager"
         )
 
-        # Update context label
-        sources = ", ".join(payload.context_sources) if payload.context_sources else "local"
-        self.context_label.text = f'+{payload.tokens_added} tokens | Sources: {sources}'
+        # Update context label with futuristic styling
+        sources = ", ".join(payload.context_sources) if payload.context_sources else "LOCAL"
+        self.context_label.text = f'▸ +{payload.tokens_added} TOKENS | SRC: {sources.upper()}'
 
         # Inject into WebView via JavaScript
         if self.webview:
