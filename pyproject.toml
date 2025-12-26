@@ -1,5 +1,5 @@
 [build-system]
-requires = ["briefcase"]
+requires = ["briefcase>=0.3.17"]
 build-backend = "briefcase.build"
 
 [tool.briefcase]
@@ -15,11 +15,22 @@ formal_name = "UDAC Portal"
 license = "MIT"
 sources = ["udac_portal"]
 requires = [
-    "toga-core>=0.4.0",
+    "toga>=0.4.0,<0.5.0",
     "platformdirs>=4.0.0",
 ]
 
 [tool.briefcase.app.udac_portal.android]
 requires = [
-    "toga-android>=0.4.0",
+    "toga-android>=0.4.0,<0.5.0",
 ]
+
+# Android-specific permissions
+permission.INTERNET = "Access AI platforms via WebView"
+permission.ACCESS_NETWORK_STATE = "Check network connectivity"
+
+# Android API levels
+supported_api_level = 24  # Android 7.0+
+target_api_level = 33     # Android 13
+
+# Additional Android config
+base_theme = "Theme.AppCompat.Light.DarkActionBar"
