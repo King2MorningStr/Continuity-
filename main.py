@@ -223,14 +223,27 @@ class PortalScreen(Screen):
 
     def load_platform(self, platform):
         """Load a platform into the WebView."""
-        self.current_platform = platform
-        self.platform_label.text = f'{platform.icon} {platform.name}'
+        try:
+            self.current_platform = platform
+            self.platform_label.text = f'{platform.icon} {platform.name}'
 
-        # Start session
-        SESSION.start_session(platform.id)
+            # Start session
+            SESSION.start_session(platform.id)
 
-        # Load WebView (Android-specific)
-        self.load_webview(platform.base_url)
+            # Load WebView (Android-specific) - may not be available
+            self.load_webview(platform.base_url)
+        except Exception as e:
+            import traceback
+            print(f"[UDAC] Error loading platform: {e}")
+            print(traceback.format_exc())
+
+            # Show error in UI
+            if hasattr(self, 'webview_placeholder'):
+                self.webview_placeholder.text = f'Error loading platform\n\n{str(e)}\n\nCheck logs for details'
+
+            # Don't crash - just show the error
+            self.current_platform = platform
+            self.platform_label.text = f'{platform.icon} {platform.name} (Error)'
 
     def load_webview(self, url):
         """Load URL in WebView (Android WebView)."""
