@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - claude/fix-crashes-production-ready-sohGx
+      - Gpt-Seph
       - main
       - master
 
