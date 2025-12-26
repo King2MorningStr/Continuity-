@@ -21,7 +21,10 @@ from udac_portal.ivm_resilience import ivm_resilient, IVMMemoryManager, RESILIEN
 APP_NAME = "UDAC Portal"
 APP_AUTHOR = "Sunni"
 STORAGE_DIR = user_data_dir(APP_NAME, APP_AUTHOR)
-Path(STORAGE_DIR).mkdir(parents=True, exist_ok=True)
+try:
+    Path(STORAGE_DIR).mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass  # Silent fail - will try again when actually needed
 
 
 @dataclass
@@ -138,20 +141,26 @@ class ContinuityEngine:
     
     def _save_state(self):
         """Persist state."""
-        state_file = os.path.join(STORAGE_DIR, "continuity_state.json")
-        data = {
-            "settings": {
-                "injection_strength": self.settings.injection_strength,
-                "continuity_enabled": self.settings.continuity_enabled,
-                "platform_isolation_mode": self.settings.platform_isolation_mode,
-                "cross_platform_insights": self.settings.cross_platform_insights,
-                "max_context_tokens": self.settings.max_context_tokens,
-            },
-            "user_profile": self.user_profile,
-            "cross_platform_memory": self.cross_platform_memory[-100:],
-        }
-        with open(state_file, 'w') as f:
-            json.dump(data, f, indent=2)
+        try:
+            # Ensure directory exists before writing
+            Path(STORAGE_DIR).mkdir(parents=True, exist_ok=True)
+
+            state_file = os.path.join(STORAGE_DIR, "continuity_state.json")
+            data = {
+                "settings": {
+                    "injection_strength": self.settings.injection_strength,
+                    "continuity_enabled": self.settings.continuity_enabled,
+                    "platform_isolation_mode": self.settings.platform_isolation_mode,
+                    "cross_platform_insights": self.settings.cross_platform_insights,
+                    "max_context_tokens": self.settings.max_context_tokens,
+                },
+                "user_profile": self.user_profile,
+                "cross_platform_memory": self.cross_platform_memory[-100:],
+            }
+            with open(state_file, 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            print(f"[ContinuityEngine] Error saving state: {e}")
     
     def get_or_create_thread(self, platform_id: str, thread_id: Optional[str] = None) -> ConversationThread:
         """Get existing thread or create new one."""

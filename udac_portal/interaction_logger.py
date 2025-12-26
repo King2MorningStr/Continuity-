@@ -22,7 +22,10 @@ APP_NAME = "UDAC Portal"
 APP_AUTHOR = "Sunni"
 STORAGE_DIR = user_data_dir(APP_NAME, APP_AUTHOR)
 LOGS_DIR = os.path.join(STORAGE_DIR, "logs")
-Path(LOGS_DIR).mkdir(parents=True, exist_ok=True)
+try:
+    Path(LOGS_DIR).mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass  # Silent fail - will try again when actually needed
 
 
 @dataclass

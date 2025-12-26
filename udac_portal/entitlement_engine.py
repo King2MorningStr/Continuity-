@@ -14,7 +14,10 @@ from platformdirs import user_data_dir
 APP_NAME = "UDAC Portal"
 APP_AUTHOR = "Sunni"
 STORAGE_DIR = user_data_dir(APP_NAME, APP_AUTHOR)
-Path(STORAGE_DIR).mkdir(parents=True, exist_ok=True)
+try:
+    Path(STORAGE_DIR).mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass  # Silent fail - will try again when actually needed
 
 ENTITLEMENT_FILE = os.path.join(STORAGE_DIR, "entitlement_state.json")
 
