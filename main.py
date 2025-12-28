@@ -644,22 +644,26 @@ class PortalScreen(Screen):
             print(f"[UDAC] ✓ Activity context: {activity}")
 
             # JavaScript interface for message bridge
+            # Store portal_screen as class variable to avoid constructor parameter
             class UDACBridge(PythonJavaClass):
                 __javainterfaces__ = ['android/webkit/JavascriptInterface']
                 __javacontext__ = 'app'
 
-                def __init__(self, portal_screen):
+                # Class variable to store portal screen reference
+                portal_screen_ref = None
+
+                def __init__(self):
+                    """Zero-argument constructor required for Java instantiation."""
                     super().__init__()
-                    self.portal_screen = portal_screen
 
                 @java_method('(Ljava/lang/String;)V')
                 def onPlatformUserMessageDetected(self, message):
                     """Called when user message is detected on platform."""
                     print(f"[UDAC] User message detected: {message[:100]}...")
                     # Log the message
-                    if self.portal_screen.current_platform:
+                    if UDACBridge.portal_screen_ref and UDACBridge.portal_screen_ref.current_platform:
                         LOGGER.log_user_prompt(
-                            self.portal_screen.current_platform.id,
+                            UDACBridge.portal_screen_ref.current_platform.id,
                             message
                         )
 
@@ -668,32 +672,36 @@ class PortalScreen(Screen):
                     """Called when AI message is detected on platform."""
                     print(f"[UDAC] AI message detected: {message[:100]}...")
                     # Feed to session manager for continuity learning
-                    if self.portal_screen.current_platform:
+                    if UDACBridge.portal_screen_ref and UDACBridge.portal_screen_ref.current_platform:
                         SESSION.on_platform_ai_message(
-                            self.portal_screen.current_platform.id,
+                            UDACBridge.portal_screen_ref.current_platform.id,
                             message
                         )
 
             # Custom WebViewClient to inject scripts on page load
+            # Store portal_screen as class variable to avoid constructor parameter
             class UDACWebViewClient(PythonJavaClass):
                 __javainterfaces__ = ['android/webkit/WebViewClient']
                 __javacontext__ = 'app'
 
-                def __init__(self, portal_screen):
+                # Class variable to store portal screen reference
+                portal_screen_ref = None
+
+                def __init__(self):
+                    """Zero-argument constructor required for Java instantiation."""
                     super().__init__()
-                    self.portal_screen = portal_screen
 
                 @java_method('(Landroid/webkit/WebView;Ljava/lang/String;)V')
                 def onPageFinished(self, view, url):
                     """Inject bridge script when page finishes loading."""
                     print(f"[UDAC] Page loaded: {url}")
-                    if self.portal_screen.current_platform:
+                    if UDACWebViewClient.portal_screen_ref and UDACWebViewClient.portal_screen_ref.current_platform:
                         # Inject directly without Clock.schedule_once to avoid Handler errors
                         # (onPageFinished is already called on UI thread, no need for Clock)
                         try:
                             # Inject the bridge script with error wrapping
                             bridge_script = PortalScriptBuilder.build(
-                                self.portal_screen.current_platform
+                                UDACWebViewClient.portal_screen_ref.current_platform
                             )
                             # Wrap in try-catch for safety
                             safe_script = f"try {{ {bridge_script} }} catch(e) {{ console.log('UDAC bridge error:', e); }}"
@@ -755,12 +763,14 @@ class PortalScreen(Screen):
                         print("[UDAC] ✓ WebView settings configured")
 
                         # Set up JavaScript bridge
-                        bridge = UDACBridge(self.portal_screen)
+                        UDACBridge.portal_screen_ref = self.portal_screen
+                        bridge = UDACBridge()
                         self.portal_screen.webview.addJavascriptInterface(bridge, 'UDACBridge')
                         print("[UDAC] ✓ JavaScript bridge added")
 
                         # Set WebViewClient
-                        client = UDACWebViewClient(self.portal_screen)
+                        UDACWebViewClient.portal_screen_ref = self.portal_screen
+                        client = UDACWebViewClient()
                         self.portal_screen.webview.setWebViewClient(client)
                         print("[UDAC] ✓ WebViewClient set")
 
