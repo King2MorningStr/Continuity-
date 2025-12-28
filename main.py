@@ -284,99 +284,102 @@ class HomeScreen(Screen):
             self.rect.pos = instance.pos
 
     def build_ui(self):
-        """Build the home screen UI."""
-        layout = BoxLayout(orientation='vertical', padding=15, spacing=10)
-
-        # Set sleek futuristic dark background
+        """Build the home screen UI with professional styling."""
         from kivy.graphics import Color, Rectangle
-        with layout.canvas.before:
-            Color(0.05, 0.05, 0.08, 1)  # Deep black-blue
-            self.rect = Rectangle(size=layout.size, pos=layout.pos)
-            layout.bind(size=self._update_rect, pos=self._update_rect)
 
-        # Header with futuristic styling
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=12)
+
+        # Set background color
+        with layout.canvas.before:
+            Color(*COLORS['bg_primary'])
+            self.bg_rect = Rectangle(size=layout.size, pos=layout.pos)
+        layout.bind(size=lambda *args: setattr(self.bg_rect, 'size', layout.size))
+        layout.bind(pos=lambda *args: setattr(self.bg_rect, 'pos', layout.pos))
+
+        # Header
         header = Label(
-            text='⚡ UDAC PORTAL',
-            size_hint=(1, 0.1),
-            font_size='32sp',
+            text='🧠 UDAC Portal',
+            size_hint=(1, 0.08),
+            font_size='28sp',
             bold=True,
-            color=(0, 0.9, 1, 1),  # Bright cyan
-            markup=True
+            color=COLORS['accent_primary']
         )
         layout.add_widget(header)
 
         # Tagline
         tagline = Label(
-            text='━━━ AI CONTINUITY BROWSER ━━━',
-            size_hint=(1, 0.05),
-            font_size='12sp',
-            color=(0.4, 0.7, 0.9, 1),  # Steel blue
-            bold=True
+            text='The AI Browser with Memory',
+            size_hint=(1, 0.04),
+            font_size='13sp',
+            color=COLORS['text_secondary']
         )
         layout.add_widget(tagline)
 
-        # Premium indicator with sharp styling
+        # Status card
+        status_card = BoxLayout(orientation='vertical', size_hint=(1, 0.14), padding=16, spacing=8)
+        with status_card.canvas.before:
+            Color(*COLORS['bg_secondary'])
+            self.status_rect = Rectangle(size=status_card.size, pos=status_card.pos)
+        status_card.bind(size=lambda *args: setattr(self.status_rect, 'size', status_card.size))
+        status_card.bind(pos=lambda *args: setattr(self.status_rect, 'pos', status_card.pos))
+
+        # Premium indicator
         tier_text = "PREMIUM" if ENTITLEMENTS.is_premium() else "FREE"
-        tier_color = (1, 0.8, 0, 1) if ENTITLEMENTS.is_premium() else (0.5, 0.5, 0.6, 1)
+        tier_color = COLORS['accent_warning'] if ENTITLEMENTS.is_premium() else COLORS['text_tertiary']
         self.premium_label = Label(
-            text=f'▸ TIER: {tier_text}',
-            size_hint=(1, 0.05),
+            text=f'{"⭐" if ENTITLEMENTS.is_premium() else "○"} {tier_text} Tier',
+            size_hint=(1, 0.5),
             font_size='14sp',
-            color=tier_color,
-            bold=True
+            bold=True,
+            color=tier_color
+        )
+        status_card.add_widget(self.premium_label)
+
+        # Continuity indicator
+        cont_enabled = ENGINE.settings.continuity_enabled
+        cont_color = COLORS['accent_success'] if cont_enabled else COLORS['text_tertiary']
+        self.continuity_label = Label(
+            text=f'{"●" if cont_enabled else "○"} Continuity {"Enabled" if cont_enabled else "Disabled"} • Strength {ENGINE.settings.injection_strength}/10',
+            size_hint=(1, 0.5),
+            font_size='12sp',
+            color=COLORS['text_secondary']
         )
         status_card.add_widget(self.continuity_label)
         layout.add_widget(status_card)
 
         # Toggle premium button
         toggle_btn = Button(
-            text='⬆ TOGGLE PREMIUM',
-            size_hint=(1, 0.08),
+            text='⭐ Toggle Premium (Local Demo)',
+            size_hint=(1, 0.06),
             on_press=self.toggle_tier,
-            background_color=(0.1, 0.3, 0.5, 1),
-            background_normal='',
-            color=(0, 0.85, 1, 1),
-            bold=True
+            background_color=COLORS['bg_tertiary'],
+            color=COLORS['text_primary']
         )
         layout.add_widget(toggle_btn)
 
-        # Continuity indicator with modern styling
-        cont_status = "ACTIVE" if ENGINE.settings.continuity_enabled else "OFFLINE"
-        cont_color = (0, 1, 0.6, 1) if ENGINE.settings.continuity_enabled else (0.9, 0.3, 0.3, 1)
-        self.continuity_label = Label(
-            text=f'▸ CONTINUITY: {cont_status} | STRENGTH: {ENGINE.settings.injection_strength}/10',
-            size_hint=(1, 0.05),
-            font_size='12sp',
-            color=cont_color,
-            bold=True
-        )
-        layout.add_widget(self.continuity_label)
-
         # Settings button
         settings_btn = Button(
-            text='⚙ SETTINGS',
-            size_hint=(1, 0.08),
+            text='⚙️ Settings',
+            size_hint=(1, 0.06),
             on_press=self.go_to_settings,
-            background_color=(0.15, 0.15, 0.25, 1),
-            background_normal='',
-            color=(0.7, 0.8, 1, 1),
-            bold=True
+            background_color=COLORS['bg_tertiary'],
+            color=COLORS['text_primary']
         )
         layout.add_widget(settings_btn)
 
-        # Platform grid section header
+        # Platform selection header
         platforms_label = Label(
-            text='━━━━━━ SELECT PLATFORM ━━━━━━',
-            size_hint=(1, 0.05),
-            font_size='14sp',
+            text='AI Platforms',
+            size_hint=(1, 0.04),
+            font_size='16sp',
             bold=True,
-            color=(0.4, 0.7, 0.9, 1)
+            color=COLORS['text_primary']
         )
         layout.add_widget(platforms_label)
 
-        # Platform buttons (scrollable) with sharp modern design
+        # Platform buttons (scrollable)
         scroll = ScrollView(size_hint=(1, 0.54))
-        platform_grid = GridLayout(cols=2, spacing=15, size_hint_y=None, padding=10)
+        platform_grid = GridLayout(cols=2, spacing=12, size_hint_y=None, padding=10)
         platform_grid.bind(minimum_height=platform_grid.setter('height'))
 
         platforms = REGISTRY.get_all_platforms()
@@ -386,16 +389,14 @@ class HomeScreen(Screen):
             text_color = COLORS['text_primary'] if platform.enabled else COLORS['text_tertiary']
 
             btn = Button(
-                text=f'{platform.icon}\n{platform.name.upper()}',
+                text=f'{platform.icon}\n{platform.name}\n{"● Ready" if platform.enabled else "○ Disabled"}',
                 size_hint=(None, None),
-                size=(155, 125),
+                size=(160, 130),
                 disabled=not platform.enabled,
-                on_press=lambda x, p=platform: self.open_platform(p),
-                background_color=(0.1, 0.2, 0.4, 1) if platform.enabled else (0.1, 0.1, 0.15, 0.6),
-                background_normal='',
-                color=(0, 0.9, 1, 1) if platform.enabled else (0.4, 0.4, 0.5, 1),
+                background_color=btn_color,
+                color=text_color,
                 font_size='13sp',
-                bold=True
+                on_press=lambda x, p=platform: self.open_platform(p)
             )
             platform_grid.add_widget(btn)
 
