@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - Gpt-Seph
+      - claude/fix-crashes-production-ready-sohGx
+      - claude/kivy-buildozer-fixes-AlTfo
       - main
       - master
 
