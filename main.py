@@ -497,12 +497,13 @@ class PortalScreen(Screen):
 
         layout.add_widget(top_bar)
 
-        # WebView placeholder with futuristic styling
+        # WebView container - will be cleared when WebView loads
         self.webview_container = BoxLayout(size_hint=(1, 0.77))
+
         self.webview_placeholder = Label(
-            text='━━━ WEBVIEW STANDBY ━━━\n\nSelect a platform to begin',
+            text='Select a platform to begin\n\nWebView will load here',
             font_size='14sp',
-            color=(0.4, 0.6, 0.8, 1)
+            color=(0.5, 0.6, 0.7, 1)
         )
         self.webview_container.add_widget(self.webview_placeholder)
         layout.add_widget(self.webview_container)
@@ -607,31 +608,47 @@ class PortalScreen(Screen):
             return
 
         try:
-            # Get Android classes
+            # Get Android classes with proper error handling
+            from jnius import autoclass, PythonJavaClass, java_method, cast
+
+            # Get the Android activity - this is the context we need
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            activity = PythonActivity.mActivity
+
+            if not activity:
+                raise Exception("Cannot get PythonActivity - activity is null")
+
+            # Get Android WebView classes
             WebView = autoclass('android.webkit.WebView')
             WebViewClient = autoclass('android.webkit.WebViewClient')
             WebChromeClient = autoclass('android.webkit.WebChromeClient')
             LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
-            LinearLayout = autoclass('android.widget.LinearLayout')
-            activity = autoclass('org.kivy.android.PythonActivity').mActivity
+            Context = autoclass('android.content.Context')
+
+            print(f"[UDAC] ✓ Android classes loaded successfully")
+            print(f"[UDAC] ✓ Activity context: {activity}")
 
             # JavaScript interface for message bridge
+            # Store portal_screen as class variable to avoid constructor parameter
             class UDACBridge(PythonJavaClass):
                 __javainterfaces__ = ['android/webkit/JavascriptInterface']
                 __javacontext__ = 'app'
 
-                def __init__(self, portal_screen):
+                # Class variable to store portal screen reference
+                portal_screen_ref = None
+
+                def __init__(self):
+                    """Zero-argument constructor required for Java instantiation."""
                     super().__init__()
-                    self.portal_screen = portal_screen
 
                 @java_method('(Ljava/lang/String;)V')
                 def onPlatformUserMessageDetected(self, message):
                     """Called when user message is detected on platform."""
                     print(f"[UDAC] User message detected: {message[:100]}...")
                     # Log the message
-                    if self.portal_screen.current_platform:
+                    if UDACBridge.portal_screen_ref and UDACBridge.portal_screen_ref.current_platform:
                         LOGGER.log_user_prompt(
-                            self.portal_screen.current_platform.id,
+                            UDACBridge.portal_screen_ref.current_platform.id,
                             message
                         )
 
@@ -640,123 +657,131 @@ class PortalScreen(Screen):
                     """Called when AI message is detected on platform."""
                     print(f"[UDAC] AI message detected: {message[:100]}...")
                     # Feed to session manager for continuity learning
-                    if self.portal_screen.current_platform:
+                    if UDACBridge.portal_screen_ref and UDACBridge.portal_screen_ref.current_platform:
                         SESSION.on_platform_ai_message(
-                            self.portal_screen.current_platform.id,
+                            UDACBridge.portal_screen_ref.current_platform.id,
                             message
                         )
 
-            # Custom WebViewClient to inject scripts on page load
-            class UDACWebViewClient(PythonJavaClass):
-                __javainterfaces__ = ['android/webkit/WebViewClient']
-                __javacontext__ = 'app'
+            # Note: WebViewClient is a CLASS not an INTERFACE - cannot implement with PythonJavaClass
+            # Instead, we'll inject the bridge script using a timer after page loads
 
-                def __init__(self, portal_screen):
+            # WebView creation Runnable - MUST execute on Android UI thread (not Kivy thread)
+            class WebViewRunnable(PythonJavaClass):
+                __javainterfaces__ = ['java/lang/Runnable']
+
+                def __init__(self, portal_screen, url_to_load):
                     super().__init__()
                     self.portal_screen = portal_screen
+                    self.url = url_to_load
 
-                @java_method('(Landroid/webkit/WebView;Ljava/lang/String;)V')
-                def onPageFinished(self, view, url):
-                    """Inject bridge script when page finishes loading."""
-                    print(f"[UDAC] Page loaded: {url}")
-                    if self.portal_screen.current_platform:
-                        # Inject directly without Clock.schedule_once to avoid Handler errors
-                        # (onPageFinished is already called on UI thread, no need for Clock)
-                        try:
-                            # Inject the bridge script with error wrapping
-                            bridge_script = PortalScriptBuilder.build(
-                                self.portal_screen.current_platform
-                            )
-                            # Wrap in try-catch for safety
-                            safe_script = f"try {{ {bridge_script} }} catch(e) {{ console.log('UDAC bridge error:', e); }}"
-                            # Use loadUrl to execute JavaScript
-                            view.loadUrl(f"javascript:{safe_script}")
-                            print("[UDAC] ✓ Bridge script injected successfully")
-                        except Exception as e:
-                            print(f"[UDAC] Script injection failed: {e}")
-                            import traceback
-                            traceback.print_exc()
+                @java_method('()V')
+                def run(self):
+                    """Create WebView on Android UI thread - critical for proper initialization."""
+                    def update_placeholder(text):
+                        """Update placeholder text on Kivy thread so user can see progress/errors."""
+                        Clock.schedule_once(lambda dt: setattr(self.portal_screen.webview_placeholder, 'text', text), 0)
 
-            # Create WebView on UI thread with comprehensive error handling
-            def create_webview(dt):
-                try:
-                    # Check if we're still on portal screen (race condition fix)
-                    if not hasattr(self, 'manager') or self.manager.current != 'portal':
-                        print("[UDAC] Portal screen no longer active, skipping WebView creation")
-                        return
-
-                    print(f"[UDAC] Creating WebView for {url}...")
-
-                    # Create WebView
-                    self.webview = WebView(activity)
-
-                    # Configure settings with error handling on each call
                     try:
-                        settings = self.webview.getSettings()
+                        print(f"[UDAC] ✓ Running on Android UI thread - creating WebView for {self.url}")
+                        update_placeholder(f'Creating WebView...\n\nLoading {self.portal_screen.current_platform.name}')
+
+                        # Create WebView with activity context - NOW ON CORRECT THREAD
+                        self.portal_screen.webview = WebView(activity)
+
+                        if not self.portal_screen.webview:
+                            error_msg = "WebView constructor returned null\n\nYour device may not support WebView"
+                            print(f"[UDAC] ERROR: {error_msg}")
+                            update_placeholder(error_msg)
+                            return
+
+                        print(f"[UDAC] ✓ WebView created successfully")
+                        update_placeholder(f'WebView created...\n\nConfiguring settings')
+
+                        # Configure WebView settings
+                        settings = self.portal_screen.webview.getSettings()
+                        if not settings:
+                            error_msg = "getSettings() returned null\n\nWebView initialization failed"
+                            print(f"[UDAC] ERROR: {error_msg}")
+                            update_placeholder(error_msg)
+                            return
+
                         settings.setJavaScriptEnabled(True)
                         settings.setDomStorageEnabled(True)
                         settings.setDatabaseEnabled(True)
                         settings.setAllowFileAccess(False)
                         settings.setAllowContentAccess(True)
                         settings.setMediaPlaybackRequiresUserGesture(False)
-                        # Enable modern WebView features for better compatibility
-                        settings.setMixedContentMode(0)  # MIXED_CONTENT_ALWAYS_ALLOW
+                        settings.setMixedContentMode(0)
                         print("[UDAC] ✓ WebView settings configured")
-                    except Exception as e:
-                        print(f"[UDAC] Warning: Some WebView settings failed: {e}")
 
-                    # Set up JavaScript bridge
-                    try:
-                        self.bridge = UDACBridge(self)
-                        self.webview.addJavascriptInterface(self.bridge, 'UDACBridge')
+                        # Set up JavaScript bridge
+                        UDACBridge.portal_screen_ref = self.portal_screen
+                        bridge = UDACBridge()
+                        self.portal_screen.webview.addJavascriptInterface(bridge, 'UDACBridge')
                         print("[UDAC] ✓ JavaScript bridge added")
-                    except Exception as e:
-                        print(f"[UDAC] Warning: JavaScript bridge setup failed: {e}")
 
-                    # Set custom WebViewClient
-                    try:
-                        self.webview_client = UDACWebViewClient(self)
-                        self.webview.setWebViewClient(self.webview_client)
-                        print("[UDAC] ✓ WebViewClient set")
-                    except Exception as e:
-                        print(f"[UDAC] Warning: WebViewClient setup failed: {e}")
+                        # Don't set WebViewClient - it's a class not an interface
+                        # We'll inject the script using a timer instead
 
-                    # Set WebChromeClient for better JS support
-                    try:
-                        self.webview.setWebChromeClient(WebChromeClient())
-                        print("[UDAC] ✓ WebChromeClient set")
-                    except Exception as e:
-                        print(f"[UDAC] Warning: WebChromeClient setup failed: {e}")
-
-                    # Get the Android layout
-                    layout = activity.findViewById(0x01020002)  # android.R.id.content
-                    if layout:
                         # Add WebView to Android layout
-                        params = LayoutParams(
-                            LayoutParams.MATCH_PARENT,
-                            LayoutParams.MATCH_PARENT
-                        )
-                        layout.addView(self.webview, params)
+                        # android.R.id.content returns the content FrameLayout
+                        content_view = activity.findViewById(0x01020002)  # android.R.id.content
+                        if not content_view:
+                            error_msg = "Could not get Android content view\n\nfindViewById returned null"
+                            print(f"[UDAC] ERROR: {error_msg}")
+                            update_placeholder(error_msg)
+                            return
+
+                        # Cast to ViewGroup so we can call addView()
+                        # (findViewById returns View but we need ViewGroup)
+                        from jnius import cast
+                        ViewGroup = autoclass('android.view.ViewGroup')
+                        layout = cast('android.view.ViewGroup', content_view)
+
+                        print(f"[UDAC] ✓ Got ViewGroup: {layout}")
+
+                        params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                        layout.addView(self.portal_screen.webview, params)
+                        print("[UDAC] ✓ WebView added to layout")
 
                         # Load URL
-                        self.webview.loadUrl(url)
-                        print(f"[UDAC] ✓ WebView created and loading: {url}")
+                        update_placeholder(f'Loading website...\n\n{self.url}')
+                        self.portal_screen.webview.loadUrl(self.url)
+                        print(f"[UDAC] ✓ Loading: {self.url}")
 
-                        # Update placeholder
-                        self.webview_placeholder.text = f'Loading {self.current_platform.name}...\n(WebView active)'
-                    else:
-                        print("[UDAC] ERROR: Could not get Android layout")
-                        self.webview_placeholder.text = 'WebView initialization error\n(Could not find Android layout)'
+                        # Inject bridge script after page loads (using timer since we can't use WebViewClient)
+                        def inject_bridge_script(dt):
+                            try:
+                                if self.portal_screen.webview and self.portal_screen.current_platform:
+                                    bridge_script = PortalScriptBuilder.build(self.portal_screen.current_platform)
+                                    safe_script = f"try {{ {bridge_script} }} catch(e) {{ console.log('UDAC bridge error:', e); }}"
+                                    self.portal_screen.webview.loadUrl(f"javascript:{safe_script}")
+                                    print("[UDAC] ✓ Bridge script injected via timer")
+                            except Exception as e:
+                                print(f"[UDAC] Bridge injection error: {e}")
 
-                except Exception as e:
-                    import traceback
-                    print(f"[UDAC] ERROR: WebView creation failed: {e}")
-                    print(traceback.format_exc())
-                    if hasattr(self, 'webview_placeholder'):
-                        self.webview_placeholder.text = f'WebView creation failed\n\n{str(e)}\n\nCheck logcat for details'
+                        # Schedule bridge injection 2 seconds after page load starts
+                        Clock.schedule_once(inject_bridge_script, 2.0)
 
-            # Delay WebView creation slightly to ensure UI is ready
-            Clock.schedule_once(create_webview, 0.3)
+                        # Clear Kivy placeholder (schedule on Kivy thread)
+                        Clock.schedule_once(lambda dt: self.portal_screen.webview_container.clear_widgets(), 0.5)
+                        print("[UDAC] ✓ WebView fully initialized")
+
+                    except Exception as e:
+                        import traceback
+                        error_trace = traceback.format_exc()
+                        error_msg = f'WebView Creation Failed\n\n{str(e)}\n\nCheck logcat for details'
+                        print(f"[UDAC] ERROR in WebView creation: {e}")
+                        print(error_trace)
+                        update_placeholder(error_msg)
+
+            # CRITICAL FIX: Execute WebView creation on Android's main UI thread
+            # Using activity.runOnUiThread() ensures proper thread context for WebView
+            print("[UDAC] Posting WebView creation to Android UI thread...")
+            runnable = WebViewRunnable(self, url)
+            activity.runOnUiThread(runnable)
+            print("[UDAC] ✓ WebView creation posted to UI thread")
 
         except Exception as e:
             import traceback
@@ -810,6 +835,30 @@ class PortalScreen(Screen):
 
         # Clear input
         self.input_field.text = ''
+
+    def open_in_browser(self, instance):
+        """Open current platform in system browser."""
+        if not self.current_platform:
+            return
+
+        try:
+            # Use Android intent to open URL in browser
+            from jnius import autoclass, cast
+            Intent = autoclass('android.content.Intent')
+            Uri = autoclass('android.net.Uri')
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+
+            intent = Intent()
+            intent.setAction(Intent.ACTION_VIEW)
+            intent.setData(Uri.parse(self.current_platform.base_url))
+
+            activity = PythonActivity.mActivity
+            activity.startActivity(intent)
+
+            print(f"[UDAC] Opened {self.current_platform.base_url} in browser")
+
+        except Exception as e:
+            print(f"[UDAC] Error opening browser: {e}")
 
     def go_home(self, instance):
         """Return to home screen."""
