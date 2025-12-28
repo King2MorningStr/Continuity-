@@ -728,33 +728,16 @@ class PortalScreen(Screen):
                     except Exception as e:
                         print(f"[UDAC] Warning: WebChromeClient setup failed: {e}")
 
-                    # Add the WebView to the Android view hierarchy.
-                    params = LayoutParams(
-                        LayoutParams.MATCH_PARENT,
-                        LayoutParams.MATCH_PARENT
-                    )
-
-                    # Prefer the root content view if it supports addView; otherwise
-                    # fall back to Activity.addContentView to avoid attribute errors on
-                    # devices that return a raw View instead of a ViewGroup.
+                    # Get the Android layout
                     layout = activity.findViewById(0x01020002)  # android.R.id.content
-                    added = False
-                    if layout and hasattr(layout, 'addView'):
-                        try:
-                            layout.addView(self.webview, params)
-                            added = True
-                        except Exception as e:
-                            print(f"[UDAC] addView on layout failed: {e}")
+                    if layout:
+                        # Add WebView to Android layout
+                        params = LayoutParams(
+                            LayoutParams.MATCH_PARENT,
+                            LayoutParams.MATCH_PARENT
+                        )
+                        layout.addView(self.webview, params)
 
-                    if not added:
-                        try:
-                            activity.addContentView(self.webview, params)
-                            added = True
-                            print("[UDAC] WebView attached via addContentView fallback")
-                        except Exception as e:
-                            print(f"[UDAC] ERROR: Could not attach WebView: {e}")
-
-                    if added:
                         # Load URL
                         self.webview.loadUrl(url)
                         print(f"[UDAC] ✓ WebView created and loading: {url}")
@@ -763,7 +746,7 @@ class PortalScreen(Screen):
                         self.webview_placeholder.text = f'Loading {self.current_platform.name}...\n(WebView active)'
                     else:
                         print("[UDAC] ERROR: Could not get Android layout")
-                        self.webview_placeholder.text = 'WebView initialization error\n(Could not attach to Android layout)'
+                        self.webview_placeholder.text = 'WebView initialization error\n(Could not find Android layout)'
 
                 except Exception as e:
                     import traceback
