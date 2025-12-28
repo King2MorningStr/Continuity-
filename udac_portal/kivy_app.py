@@ -453,6 +453,8 @@ class PortalScreen(Screen):
         self.current_platform = None
         self.webview = None
         self.rect = None
+        self._destroying_webview = False
+        self._ui_thread_helper = None
         self.build_ui()
 
     def _update_rect(self, instance, value):
@@ -550,6 +552,12 @@ class PortalScreen(Screen):
     def load_platform(self, platform):
         """Load a platform into the WebView."""
         print(f"[UDAC] load_platform called for: {platform.name}")
+
+        # Clean up any existing WebView before creating a new one. Some devices
+        # will crash with "child already has a parent" if we attempt to add the
+        # same WebView instance twice, so we always destroy the previous view
+        # first.
+        self._destroy_webview("pre-load")
 
         # Set platform info first
         self.current_platform = platform
@@ -728,16 +736,33 @@ class PortalScreen(Screen):
                     except Exception as e:
                         print(f"[UDAC] Warning: WebChromeClient setup failed: {e}")
 
-                    # Get the Android layout
-                    layout = activity.findViewById(0x01020002)  # android.R.id.content
-                    if layout:
-                        # Add WebView to Android layout
-                        params = LayoutParams(
-                            LayoutParams.MATCH_PARENT,
-                            LayoutParams.MATCH_PARENT
-                        )
-                        layout.addView(self.webview, params)
+                    # Add the WebView to the Android view hierarchy.
+                    params = LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        LayoutParams.MATCH_PARENT
+                    )
 
+                    # Prefer the root content view if it supports addView; otherwise
+                    # fall back to Activity.addContentView to avoid attribute errors on
+                    # devices that return a raw View instead of a ViewGroup.
+                    layout = activity.findViewById(0x01020002)  # android.R.id.content
+                    added = False
+                    if layout and hasattr(layout, 'addView'):
+                        try:
+                            layout.addView(self.webview, params)
+                            added = True
+                        except Exception as e:
+                            print(f"[UDAC] addView on layout failed: {e}")
+
+                    if not added:
+                        try:
+                            activity.addContentView(self.webview, params)
+                            added = True
+                            print("[UDAC] WebView attached via addContentView fallback")
+                        except Exception as e:
+                            print(f"[UDAC] ERROR: Could not attach WebView: {e}")
+
+                    if added:
                         # Load URL
                         self.webview.loadUrl(url)
                         print(f"[UDAC] ✓ WebView created and loading: {url}")
@@ -746,7 +771,7 @@ class PortalScreen(Screen):
                         self.webview_placeholder.text = f'Loading {self.current_platform.name}...\n(WebView active)'
                     else:
                         print("[UDAC] ERROR: Could not get Android layout")
-                        self.webview_placeholder.text = 'WebView initialization error\n(Could not find Android layout)'
+                        self.webview_placeholder.text = 'WebView initialization error\n(Could not attach to Android layout)'
 
                 except Exception as e:
                     import traceback
@@ -840,28 +865,7 @@ class PortalScreen(Screen):
     def go_home(self, instance):
         """Return to home screen."""
         # Clean up WebView
-        if self.webview:
-            try:
-                # Check if jnius is available first
-                try:
-                    from jnius import autoclass
-                except ImportError:
-                    print("[UDAC] jnius not available, skipping native WebView cleanup")
-                    self.webview = None
-                    # Continue to session cleanup below
-
-                if self.webview:  # Only if not already cleared above
-                    activity = autoclass('org.kivy.android.PythonActivity').mActivity
-                    layout = activity.findViewById(0x01020002)
-                    if layout:
-                        layout.removeView(self.webview)
-                    self.webview.destroy()
-                    self.webview = None
-                    print("[UDAC] WebView cleaned up")
-            except Exception as e:
-                print(f"[UDAC] WebView cleanup error: {e}")
-                # Still clear the reference to prevent memory leak
-                self.webview = None
+        self._destroy_webview("navigate-home")
 
         # Always end session, even if WebView cleanup failed
         try:
@@ -873,6 +877,92 @@ class PortalScreen(Screen):
 
         self.current_platform = None
         self.manager.current = 'home'
+
+    def _run_on_ui_thread(self, fn, *, description: str = "ui-task"):
+        """Run *fn* on the Android UI thread when available."""
+        if not JNIUS_AVAILABLE:
+            fn(None)
+            return
+
+        from jnius import PythonJavaClass, java_method, autoclass
+
+        # Lazily build a reusable runnable wrapper to avoid recreating classes
+        if self._ui_thread_helper is None:
+            class _Runnable(PythonJavaClass):
+                __javainterfaces__ = ['java/lang/Runnable']
+                __javacontext__ = 'app'
+
+                def __init__(self, inner):
+                    super().__init__()
+                    self.inner = inner
+
+                @java_method('()V')
+                def run(self):  # pragma: no cover - UI thread
+                    try:
+                        self.inner(None)
+                    except Exception as e:
+                        import traceback
+                        print(f"[UDAC] UI runnable error ({description}): {e}")
+                        print(traceback.format_exc())
+
+            self._ui_thread_helper = _Runnable
+
+        activity = autoclass('org.kivy.android.PythonActivity').mActivity
+        activity.runOnUiThread(self._ui_thread_helper(fn))
+
+    def _destroy_webview(self, reason: str):
+        """Remove and destroy the current WebView safely."""
+        # Guard against recursive destruction
+        if self._destroying_webview:
+            return
+
+        if not self.webview:
+            return
+
+        self._destroying_webview = True
+
+        def _cleanup(_: object):
+            try:
+                if not JNIUS_AVAILABLE:
+                    print(f"[UDAC] jnius not available, skipping WebView cleanup ({reason})")
+                    return
+
+                from jnius import autoclass
+
+                try:
+                    parent = self.webview.getParent() if hasattr(self.webview, 'getParent') else None
+                    if parent is not None:
+                        parent.removeView(self.webview)
+                        print(f"[UDAC] WebView detached from parent ({reason})")
+                except Exception as e:
+                    print(f"[UDAC] Warning: could not detach WebView ({reason}): {e}")
+
+                try:
+                    # Extra safety: also request removal from the root content view if present
+                    activity = autoclass('org.kivy.android.PythonActivity').mActivity
+                    layout = activity.findViewById(0x01020002)
+                    if layout and hasattr(layout, 'removeView'):
+                        layout.removeView(self.webview)
+                except Exception:
+                    pass
+
+                try:
+                    if hasattr(self.webview, 'stopLoading'):
+                        self.webview.stopLoading()
+                    self.webview.destroy()
+                    print(f"[UDAC] WebView destroyed ({reason})")
+                except Exception as e:
+                    print(f"[UDAC] WebView destroy failed ({reason}): {e}")
+            finally:
+                self.webview = None
+                self._destroying_webview = False
+
+        # Always perform cleanup on UI thread to avoid cross-thread crashes
+        try:
+            self._run_on_ui_thread(_cleanup, description=f"destroy-{reason}")
+        except Exception:
+            # Last resort: attempt cleanup synchronously
+            _cleanup(None)
 
 
 class SettingsScreen(Screen):
