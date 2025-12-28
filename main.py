@@ -660,25 +660,22 @@ class PortalScreen(Screen):
                     """Inject bridge script when page finishes loading."""
                     print(f"[UDAC] Page loaded: {url}")
                     if self.portal_screen.current_platform:
-                        # Use Clock.schedule_once for delayed injection
-                        # This prevents crashes from immediate JavaScript execution
-                        def delayed_inject(dt):
-                            try:
-                                # Inject the bridge script with error wrapping
-                                bridge_script = PortalScriptBuilder.build(
-                                    self.portal_screen.current_platform
-                                )
-                                # Wrap in try-catch for safety
-                                safe_script = f"try {{ {bridge_script} }} catch(e) {{ console.log('UDAC bridge error:', e); }}"
-                                # Use loadUrl instead of evaluateJavascript to avoid Handler null reference
-                                view.loadUrl(f"javascript:{safe_script}")
-                                print("[UDAC] ✓ Bridge script injected successfully")
-                            except Exception as e:
-                                print(f"[UDAC] Script injection failed: {e}")
-                                import traceback
-                                traceback.print_exc()
-
-                        Clock.schedule_once(delayed_inject, 1.5)
+                        # Inject directly without Clock.schedule_once to avoid Handler errors
+                        # (onPageFinished is already called on UI thread, no need for Clock)
+                        try:
+                            # Inject the bridge script with error wrapping
+                            bridge_script = PortalScriptBuilder.build(
+                                self.portal_screen.current_platform
+                            )
+                            # Wrap in try-catch for safety
+                            safe_script = f"try {{ {bridge_script} }} catch(e) {{ console.log('UDAC bridge error:', e); }}"
+                            # Use loadUrl to execute JavaScript
+                            view.loadUrl(f"javascript:{safe_script}")
+                            print("[UDAC] ✓ Bridge script injected successfully")
+                        except Exception as e:
+                            print(f"[UDAC] Script injection failed: {e}")
+                            import traceback
+                            traceback.print_exc()
 
             # Create WebView on UI thread with comprehensive error handling
             def create_webview(dt):
