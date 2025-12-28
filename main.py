@@ -607,13 +607,25 @@ class PortalScreen(Screen):
             return
 
         try:
-            # Get Android classes
+            # Get Android classes with proper error handling
+            from jnius import autoclass, PythonJavaClass, java_method, cast
+
+            # Get the Android activity - this is the context we need
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            activity = PythonActivity.mActivity
+
+            if not activity:
+                raise Exception("Cannot get PythonActivity - activity is null")
+
+            # Get Android WebView classes
             WebView = autoclass('android.webkit.WebView')
             WebViewClient = autoclass('android.webkit.WebViewClient')
             WebChromeClient = autoclass('android.webkit.WebChromeClient')
             LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
-            LinearLayout = autoclass('android.widget.LinearLayout')
-            activity = autoclass('org.kivy.android.PythonActivity').mActivity
+            Context = autoclass('android.content.Context')
+
+            print(f"[UDAC] ✓ Android classes loaded successfully")
+            print(f"[UDAC] ✓ Activity context: {activity}")
 
             # JavaScript interface for message bridge
             class UDACBridge(PythonJavaClass):
@@ -687,73 +699,66 @@ class PortalScreen(Screen):
 
                     print(f"[UDAC] Creating WebView for {url}...")
 
-                    # Verify activity is valid
-                    if not activity:
-                        raise Exception("Activity is null - cannot create WebView")
-                    print(f"[UDAC] ✓ Activity verified: {activity}")
-
-                    # Create WebView
-                    self.webview = WebView(activity)
-
-                    # Verify WebView was created successfully
-                    if not self.webview:
-                        raise Exception("WebView creation returned null")
-                    print(f"[UDAC] ✓ WebView created: {self.webview}")
-
-                    # Configure settings with error handling on each call
+                    # Create WebView with proper Android context
+                    # Must be done on UI thread - Kivy's Clock.schedule_once ensures this
                     try:
-                        settings = self.webview.getSettings()
-                        if not settings:
-                            raise Exception("WebView.getSettings() returned null")
-                        settings.setJavaScriptEnabled(True)
-                        settings.setDomStorageEnabled(True)
-                        settings.setDatabaseEnabled(True)
-                        settings.setAllowFileAccess(False)
-                        settings.setAllowContentAccess(True)
-                        settings.setMediaPlaybackRequiresUserGesture(False)
-                        # Enable modern WebView features for better compatibility
-                        settings.setMixedContentMode(0)  # MIXED_CONTENT_ALWAYS_ALLOW
-                        print("[UDAC] ✓ WebView settings configured")
+                        # Create WebView with the activity context
+                        self.webview = WebView(activity)
+
+                        if not self.webview:
+                            raise Exception("WebView constructor returned null")
+
+                        print(f"[UDAC] ✓ WebView instance created successfully")
+
                     except Exception as e:
-                        print(f"[UDAC] Warning: Some WebView settings failed: {e}")
+                        raise Exception(f"WebView creation failed: {str(e)}")
 
-                    # Set up JavaScript bridge
-                    try:
-                        self.bridge = UDACBridge(self)
-                        self.webview.addJavascriptInterface(self.bridge, 'UDACBridge')
-                        print("[UDAC] ✓ JavaScript bridge added")
-                    except Exception as e:
-                        print(f"[UDAC] Warning: JavaScript bridge setup failed: {e}")
+                    # Configure WebView settings - critical for functionality
+                    settings = self.webview.getSettings()
+                    if not settings:
+                        raise Exception("getSettings() returned null - WebView not properly initialized")
 
-                    # Set custom WebViewClient
-                    try:
-                        self.webview_client = UDACWebViewClient(self)
-                        self.webview.setWebViewClient(self.webview_client)
-                        print("[UDAC] ✓ WebViewClient set")
-                    except Exception as e:
-                        print(f"[UDAC] Warning: WebViewClient setup failed: {e}")
+                    # Apply settings - these are required for the app to work
+                    settings.setJavaScriptEnabled(True)  # Required for platform interaction
+                    settings.setDomStorageEnabled(True)  # Required for modern web apps
+                    settings.setDatabaseEnabled(True)
+                    settings.setAllowFileAccess(False)  # Security
+                    settings.setAllowContentAccess(True)
+                    settings.setMediaPlaybackRequiresUserGesture(False)
+                    settings.setMixedContentMode(0)  # Allow HTTPS/HTTP mixed content
 
-                    # Note: Removed WebChromeClient to avoid Handler initialization issues
-                    # Basic WebView functionality works without it
+                    print("[UDAC] ✓ WebView settings configured successfully")
 
-                    # Get the Android layout
+                    # Set up JavaScript bridge for message detection
+                    self.bridge = UDACBridge(self)
+                    self.webview.addJavascriptInterface(self.bridge, 'UDACBridge')
+                    print("[UDAC] ✓ JavaScript bridge added successfully")
+
+                    # Set custom WebViewClient for script injection on page load
+                    self.webview_client = UDACWebViewClient(self)
+                    self.webview.setWebViewClient(self.webview_client)
+                    print("[UDAC] ✓ WebViewClient configured successfully")
+
+                    # Get the Android content view to add WebView to
                     layout = activity.findViewById(0x01020002)  # android.R.id.content
                     if not layout:
-                        raise Exception("Could not get Android content layout (android.R.id.content)")
+                        raise Exception("findViewById returned null - cannot access Android content layout")
 
-                    print(f"[UDAC] ✓ Android layout found: {layout}")
+                    print(f"[UDAC] ✓ Android content layout retrieved")
 
-                    # Add WebView to Android layout
+                    # Create layout parameters for full-screen WebView
                     params = LayoutParams(
                         LayoutParams.MATCH_PARENT,
                         LayoutParams.MATCH_PARENT
                     )
-                    layout.addView(self.webview, params)
-                    print("[UDAC] ✓ WebView added to layout")
 
-                    # Load URL
+                    # Add WebView to the Android view hierarchy
+                    layout.addView(self.webview, params)
+                    print("[UDAC] ✓ WebView added to Android layout")
+
+                    # Load the platform URL
                     self.webview.loadUrl(url)
-                    print(f"[UDAC] ✓ WebView loading URL: {url}")
+                    print(f"[UDAC] ✓ Loading URL: {url}")
 
                     # Hide the Kivy placeholder so WebView is visible
                     self.webview_container.clear_widgets()
