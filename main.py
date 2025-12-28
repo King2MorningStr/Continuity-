@@ -497,14 +497,21 @@ class PortalScreen(Screen):
 
         layout.add_widget(top_bar)
 
-        # WebView placeholder with futuristic styling
+        # WebView info - native WebView will be full screen when active
         self.webview_container = BoxLayout(size_hint=(1, 0.77))
-        self.webview_placeholder = Label(
-            text='━━━ WEBVIEW STANDBY ━━━\n\nSelect a platform to begin',
+
+        open_browser_btn = Button(
+            text='🌐 OPEN IN BROWSER\n\nWebView embedding not yet supported\nClick to open platform in system browser',
+            size_hint=(1, None),
+            height=200,
+            on_press=self.open_in_browser,
+            background_color=(0.1, 0.3, 0.5, 1),
+            background_normal='',
+            color=(0, 0.9, 1, 1),
             font_size='14sp',
-            color=(0.4, 0.6, 0.8, 1)
+            bold=True
         )
-        self.webview_container.add_widget(self.webview_placeholder)
+        self.webview_container.add_widget(open_browser_btn)
         layout.add_widget(self.webview_container)
 
         # Context indicator with modern styling
@@ -836,6 +843,30 @@ class PortalScreen(Screen):
 
         # Clear input
         self.input_field.text = ''
+
+    def open_in_browser(self, instance):
+        """Open current platform in system browser."""
+        if not self.current_platform:
+            return
+
+        try:
+            # Use Android intent to open URL in browser
+            from jnius import autoclass, cast
+            Intent = autoclass('android.content.Intent')
+            Uri = autoclass('android.net.Uri')
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+
+            intent = Intent()
+            intent.setAction(Intent.ACTION_VIEW)
+            intent.setData(Uri.parse(self.current_platform.base_url))
+
+            activity = PythonActivity.mActivity
+            activity.startActivity(intent)
+
+            print(f"[UDAC] Opened {self.current_platform.base_url} in browser")
+
+        except Exception as e:
+            print(f"[UDAC] Error opening browser: {e}")
 
     def go_home(self, instance):
         """Return to home screen."""
