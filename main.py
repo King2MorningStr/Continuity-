@@ -325,7 +325,8 @@ class HomeScreen(Screen):
             color=tier_color,
             bold=True
         )
-        layout.add_widget(self.premium_label)
+        status_card.add_widget(self.continuity_label)
+        layout.add_widget(status_card)
 
         # Toggle premium button
         toggle_btn = Button(
@@ -380,6 +381,10 @@ class HomeScreen(Screen):
 
         platforms = REGISTRY.get_all_platforms()
         for platform in platforms:
+            # Platform card button
+            btn_color = COLORS['bg_tertiary'] if platform.enabled else COLORS['bg_secondary']
+            text_color = COLORS['text_primary'] if platform.enabled else COLORS['text_tertiary']
+
             btn = Button(
                 text=f'{platform.icon}\n{platform.name.upper()}',
                 size_hint=(None, None),
@@ -640,67 +645,105 @@ class PortalScreen(Screen):
                     """Inject bridge script when page finishes loading."""
                     print(f"[UDAC] Page loaded: {url}")
                     if self.portal_screen.current_platform:
-                        try:
-                            # Inject the bridge script
-                            bridge_script = PortalScriptBuilder.build(
-                                self.portal_screen.current_platform
-                            )
-                            view.evaluateJavascript(bridge_script, None)
-                            print("[UDAC] Bridge script injected successfully")
-                        except Exception as e:
-                            print(f"[UDAC] Script injection failed: {e}")
-                            import traceback
-                            traceback.print_exc()
+                        # Use Clock.schedule_once for delayed injection
+                        # This prevents crashes from immediate JavaScript execution
+                        def delayed_inject(dt):
+                            try:
+                                # Inject the bridge script with error wrapping
+                                bridge_script = PortalScriptBuilder.build(
+                                    self.portal_screen.current_platform
+                                )
+                                # Wrap in try-catch for safety
+                                safe_script = f"try {{ {bridge_script} }} catch(e) {{ console.log('UDAC bridge error:', e); }}"
+                                view.evaluateJavascript(safe_script, None)
+                                print("[UDAC] ✓ Bridge script injected successfully")
+                            except Exception as e:
+                                print(f"[UDAC] Script injection failed: {e}")
+                                import traceback
+                                traceback.print_exc()
 
-            # Create WebView on UI thread
+                        Clock.schedule_once(delayed_inject, 1.5)
+
+            # Create WebView on UI thread with comprehensive error handling
             def create_webview(dt):
-                # Check if we're still on portal screen (race condition fix)
-                if not hasattr(self, 'manager') or self.manager.current != 'portal':
-                    print("[UDAC] Portal screen no longer active, skipping WebView creation")
-                    return
+                try:
+                    # Check if we're still on portal screen (race condition fix)
+                    if not hasattr(self, 'manager') or self.manager.current != 'portal':
+                        print("[UDAC] Portal screen no longer active, skipping WebView creation")
+                        return
 
-                # Create WebView
-                self.webview = WebView(activity)
-                settings = self.webview.getSettings()
-                settings.setJavaScriptEnabled(True)
-                settings.setDomStorageEnabled(True)
-                settings.setDatabaseEnabled(True)
-                settings.setAllowFileAccess(False)
-                settings.setAllowContentAccess(True)
-                settings.setMediaPlaybackRequiresUserGesture(False)
+                    print(f"[UDAC] Creating WebView for {url}...")
 
-                # Set up JavaScript bridge
-                self.bridge = UDACBridge(self)
-                self.webview.addJavascriptInterface(self.bridge, 'UDACBridge')
+                    # Create WebView
+                    self.webview = WebView(activity)
 
-                # Set custom WebViewClient
-                self.webview_client = UDACWebViewClient(self)
-                self.webview.setWebViewClient(self.webview_client)
+                    # Configure settings with error handling on each call
+                    try:
+                        settings = self.webview.getSettings()
+                        settings.setJavaScriptEnabled(True)
+                        settings.setDomStorageEnabled(True)
+                        settings.setDatabaseEnabled(True)
+                        settings.setAllowFileAccess(False)
+                        settings.setAllowContentAccess(True)
+                        settings.setMediaPlaybackRequiresUserGesture(False)
+                        # Enable modern WebView features for better compatibility
+                        settings.setMixedContentMode(0)  # MIXED_CONTENT_ALWAYS_ALLOW
+                        print("[UDAC] ✓ WebView settings configured")
+                    except Exception as e:
+                        print(f"[UDAC] Warning: Some WebView settings failed: {e}")
 
-                # Set WebChromeClient for better JS support
-                self.webview.setWebChromeClient(WebChromeClient())
+                    # Set up JavaScript bridge
+                    try:
+                        self.bridge = UDACBridge(self)
+                        self.webview.addJavascriptInterface(self.bridge, 'UDACBridge')
+                        print("[UDAC] ✓ JavaScript bridge added")
+                    except Exception as e:
+                        print(f"[UDAC] Warning: JavaScript bridge setup failed: {e}")
 
-                # Get the Android layout
-                layout = activity.findViewById(0x01020002)  # android.R.id.content
-                if layout:
-                    # Add WebView to Android layout
-                    params = LayoutParams(
-                        LayoutParams.MATCH_PARENT,
-                        LayoutParams.MATCH_PARENT
-                    )
-                    layout.addView(self.webview, params)
+                    # Set custom WebViewClient
+                    try:
+                        self.webview_client = UDACWebViewClient(self)
+                        self.webview.setWebViewClient(self.webview_client)
+                        print("[UDAC] ✓ WebViewClient set")
+                    except Exception as e:
+                        print(f"[UDAC] Warning: WebViewClient setup failed: {e}")
 
-                    # Load URL
-                    self.webview.loadUrl(url)
-                    print(f"[UDAC] WebView created and loading: {url}")
+                    # Set WebChromeClient for better JS support
+                    try:
+                        self.webview.setWebChromeClient(WebChromeClient())
+                        print("[UDAC] ✓ WebChromeClient set")
+                    except Exception as e:
+                        print(f"[UDAC] Warning: WebChromeClient setup failed: {e}")
 
-                    # Update placeholder
-                    self.webview_placeholder.text = f'Loading {self.current_platform.name}...\n(WebView active)'
-                else:
-                    print("[UDAC] Could not get Android layout")
-                    self.webview_placeholder.text = 'WebView initialization error'
+                    # Get the Android layout
+                    layout = activity.findViewById(0x01020002)  # android.R.id.content
+                    if layout:
+                        # Add WebView to Android layout
+                        params = LayoutParams(
+                            LayoutParams.MATCH_PARENT,
+                            LayoutParams.MATCH_PARENT
+                        )
+                        layout.addView(self.webview, params)
 
-            Clock.schedule_once(create_webview, 0.1)
+                        # Load URL
+                        self.webview.loadUrl(url)
+                        print(f"[UDAC] ✓ WebView created and loading: {url}")
+
+                        # Update placeholder
+                        self.webview_placeholder.text = f'Loading {self.current_platform.name}...\n(WebView active)'
+                    else:
+                        print("[UDAC] ERROR: Could not get Android layout")
+                        self.webview_placeholder.text = 'WebView initialization error\n(Could not find Android layout)'
+
+                except Exception as e:
+                    import traceback
+                    print(f"[UDAC] ERROR: WebView creation failed: {e}")
+                    print(traceback.format_exc())
+                    if hasattr(self, 'webview_placeholder'):
+                        self.webview_placeholder.text = f'WebView creation failed\n\n{str(e)}\n\nCheck logcat for details'
+
+            # Delay WebView creation slightly to ensure UI is ready
+            Clock.schedule_once(create_webview, 0.3)
 
         except Exception as e:
             import traceback
