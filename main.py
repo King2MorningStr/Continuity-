@@ -687,12 +687,24 @@ class PortalScreen(Screen):
 
                     print(f"[UDAC] Creating WebView for {url}...")
 
+                    # Verify activity is valid
+                    if not activity:
+                        raise Exception("Activity is null - cannot create WebView")
+                    print(f"[UDAC] ✓ Activity verified: {activity}")
+
                     # Create WebView
                     self.webview = WebView(activity)
+
+                    # Verify WebView was created successfully
+                    if not self.webview:
+                        raise Exception("WebView creation returned null")
+                    print(f"[UDAC] ✓ WebView created: {self.webview}")
 
                     # Configure settings with error handling on each call
                     try:
                         settings = self.webview.getSettings()
+                        if not settings:
+                            raise Exception("WebView.getSettings() returned null")
                         settings.setJavaScriptEnabled(True)
                         settings.setDomStorageEnabled(True)
                         settings.setDatabaseEnabled(True)
@@ -726,24 +738,26 @@ class PortalScreen(Screen):
 
                     # Get the Android layout
                     layout = activity.findViewById(0x01020002)  # android.R.id.content
-                    if layout:
-                        # Add WebView to Android layout
-                        params = LayoutParams(
-                            LayoutParams.MATCH_PARENT,
-                            LayoutParams.MATCH_PARENT
-                        )
-                        layout.addView(self.webview, params)
+                    if not layout:
+                        raise Exception("Could not get Android content layout (android.R.id.content)")
 
-                        # Load URL
-                        self.webview.loadUrl(url)
-                        print(f"[UDAC] ✓ WebView created and loading: {url}")
+                    print(f"[UDAC] ✓ Android layout found: {layout}")
 
-                        # Hide the Kivy placeholder so WebView is visible
-                        self.webview_container.clear_widgets()
-                        print("[UDAC] ✓ Placeholder cleared, WebView should be visible")
-                    else:
-                        print("[UDAC] ERROR: Could not get Android layout")
-                        self.webview_placeholder.text = 'WebView initialization error\n(Could not find Android layout)'
+                    # Add WebView to Android layout
+                    params = LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        LayoutParams.MATCH_PARENT
+                    )
+                    layout.addView(self.webview, params)
+                    print("[UDAC] ✓ WebView added to layout")
+
+                    # Load URL
+                    self.webview.loadUrl(url)
+                    print(f"[UDAC] ✓ WebView loading URL: {url}")
+
+                    # Hide the Kivy placeholder so WebView is visible
+                    self.webview_container.clear_widgets()
+                    print("[UDAC] ✓ Placeholder cleared, WebView should be visible")
 
                 except Exception as e:
                     import traceback
