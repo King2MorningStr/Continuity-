@@ -32,6 +32,19 @@ from udac_portal.ivm_resilience import ivm_resilient, ivm_safe_call, RESILIENCE
 print(f"[UDAC] Crash log location: {_UDAC_CRASH_LOG_PATH}")
 print("[UDAC] 🚀 Starting UDAC Portal (Kivy version)...")
 
+# Professional color palette
+COLORS = {
+    'bg_primary': (0.04, 0.04, 0.12, 1),      # Deep space blue #0a0a1e
+    'bg_secondary': (0.08, 0.08, 0.16, 1),    # Elevated surface #151428
+    'bg_tertiary': (0.12, 0.11, 0.23, 1),     # Card background #1e1c3a
+    'accent_primary': (0.39, 0.40, 0.95, 1),  # Indigo #6366f1
+    'accent_success': (0.06, 0.73, 0.51, 1),  # Green #10b981
+    'accent_warning': (0.96, 0.62, 0.04, 1),  # Amber #f59e0b
+    'text_primary': (0.95, 0.96, 0.97, 1),    # High emphasis #f3f4f6
+    'text_secondary': (0.61, 0.64, 0.69, 1),  # Medium emphasis #9ca3af
+    'text_tertiary': (0.42, 0.45, 0.50, 1),   # Low emphasis #6b7280
+}
+
 
 class HomeScreen(Screen):
     """Home screen with platform selection."""
@@ -41,81 +54,118 @@ class HomeScreen(Screen):
         self.build_ui()
 
     def build_ui(self):
-        """Build the home screen UI."""
-        layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        """Build the home screen UI with professional styling."""
+        from kivy.graphics import Color, Rectangle
+
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=12)
+
+        # Set background color
+        with layout.canvas.before:
+            Color(*COLORS['bg_primary'])
+            self.bg_rect = Rectangle(size=layout.size, pos=layout.pos)
+        layout.bind(size=lambda *args: setattr(self.bg_rect, 'size', layout.size))
+        layout.bind(pos=lambda *args: setattr(self.bg_rect, 'pos', layout.pos))
 
         # Header
         header = Label(
             text='🧠 UDAC Portal',
-            size_hint=(1, 0.1),
-            font_size='24sp',
-            bold=True
+            size_hint=(1, 0.08),
+            font_size='28sp',
+            bold=True,
+            color=COLORS['accent_primary']
         )
         layout.add_widget(header)
 
         # Tagline
         tagline = Label(
-            text='AI Browser with Continuity',
-            size_hint=(1, 0.05),
-            font_size='12sp'
+            text='The AI Browser with Memory',
+            size_hint=(1, 0.04),
+            font_size='13sp',
+            color=COLORS['text_secondary']
         )
         layout.add_widget(tagline)
 
+        # Status card
+        status_card = BoxLayout(orientation='vertical', size_hint=(1, 0.14), padding=16, spacing=8)
+        with status_card.canvas.before:
+            Color(*COLORS['bg_secondary'])
+            self.status_rect = Rectangle(size=status_card.size, pos=status_card.pos)
+        status_card.bind(size=lambda *args: setattr(self.status_rect, 'size', status_card.size))
+        status_card.bind(pos=lambda *args: setattr(self.status_rect, 'pos', status_card.pos))
+
         # Premium indicator
         tier_text = "PREMIUM" if ENTITLEMENTS.is_premium() else "FREE"
+        tier_color = COLORS['accent_warning'] if ENTITLEMENTS.is_premium() else COLORS['text_tertiary']
         self.premium_label = Label(
-            text=f'Tier: {tier_text}',
-            size_hint=(1, 0.05),
-            font_size='14sp'
+            text=f'{"⭐" if ENTITLEMENTS.is_premium() else "○"} {tier_text} Tier',
+            size_hint=(1, 0.5),
+            font_size='14sp',
+            bold=True,
+            color=tier_color
         )
-        layout.add_widget(self.premium_label)
+        status_card.add_widget(self.premium_label)
+
+        # Continuity indicator
+        cont_enabled = ENGINE.settings.continuity_enabled
+        cont_color = COLORS['accent_success'] if cont_enabled else COLORS['text_tertiary']
+        self.continuity_label = Label(
+            text=f'{"●" if cont_enabled else "○"} Continuity {"Enabled" if cont_enabled else "Disabled"} • Strength {ENGINE.settings.injection_strength}/10',
+            size_hint=(1, 0.5),
+            font_size='12sp',
+            color=COLORS['text_secondary']
+        )
+        status_card.add_widget(self.continuity_label)
+        layout.add_widget(status_card)
 
         # Toggle premium button
         toggle_btn = Button(
-            text='⭐ Toggle Premium (local)',
-            size_hint=(1, 0.08),
-            on_press=self.toggle_tier
+            text='⭐ Toggle Premium (Local Demo)',
+            size_hint=(1, 0.06),
+            on_press=self.toggle_tier,
+            background_color=COLORS['bg_tertiary'],
+            color=COLORS['text_primary']
         )
         layout.add_widget(toggle_btn)
-
-        # Continuity indicator
-        cont_status = "ON" if ENGINE.settings.continuity_enabled else "OFF"
-        self.continuity_label = Label(
-            text=f'Continuity: {cont_status} | Strength: {ENGINE.settings.injection_strength}/10',
-            size_hint=(1, 0.05),
-            font_size='12sp'
-        )
-        layout.add_widget(self.continuity_label)
 
         # Settings button
         settings_btn = Button(
             text='⚙️ Settings',
-            size_hint=(1, 0.08),
-            on_press=self.go_to_settings
+            size_hint=(1, 0.06),
+            on_press=self.go_to_settings,
+            background_color=COLORS['bg_tertiary'],
+            color=COLORS['text_primary']
         )
         layout.add_widget(settings_btn)
 
-        # Platform grid
+        # Platform selection header
         platforms_label = Label(
-            text='Select AI Platform',
-            size_hint=(1, 0.05),
-            font_size='14sp',
-            bold=True
+            text='AI Platforms',
+            size_hint=(1, 0.04),
+            font_size='16sp',
+            bold=True,
+            color=COLORS['text_primary']
         )
         layout.add_widget(platforms_label)
 
         # Platform buttons (scrollable)
         scroll = ScrollView(size_hint=(1, 0.54))
-        platform_grid = GridLayout(cols=2, spacing=10, size_hint_y=None, padding=10)
+        platform_grid = GridLayout(cols=2, spacing=12, size_hint_y=None, padding=10)
         platform_grid.bind(minimum_height=platform_grid.setter('height'))
 
         platforms = REGISTRY.get_all_platforms()
         for platform in platforms:
+            # Platform card button
+            btn_color = COLORS['bg_tertiary'] if platform.enabled else COLORS['bg_secondary']
+            text_color = COLORS['text_primary'] if platform.enabled else COLORS['text_tertiary']
+
             btn = Button(
-                text=f'{platform.icon}\n{platform.name}',
+                text=f'{platform.icon}\n{platform.name}\n{"● Ready" if platform.enabled else "○ Disabled"}',
                 size_hint=(None, None),
-                size=(150, 120),
+                size=(160, 130),
                 disabled=not platform.enabled,
+                background_color=btn_color,
+                color=text_color,
+                font_size='13sp',
                 on_press=lambda x, p=platform: self.open_platform(p)
             )
             platform_grid.add_widget(btn)
@@ -134,8 +184,12 @@ class HomeScreen(Screen):
             platform_isolation_mode=ENGINE.settings.platform_isolation_mode and ENTITLEMENTS.is_premium(),
             max_context_tokens=min(ENGINE.settings.max_context_tokens, 3000 if ENTITLEMENTS.is_premium() else 1200)
         )
-        tier_text = "PREMIUM" if ENTITLEMENTS.is_premium() else "FREE"
-        self.premium_label.text = f'Tier: {tier_text}'
+        # Update premium label with new tier and color
+        is_premium = ENTITLEMENTS.is_premium()
+        tier_text = "PREMIUM" if is_premium else "FREE"
+        tier_color = COLORS['accent_warning'] if is_premium else COLORS['text_tertiary']
+        self.premium_label.text = f'{"⭐" if is_premium else "○"} {tier_text} Tier'
+        self.premium_label.color = tier_color
 
     def go_to_settings(self, instance):
         """Navigate to settings screen."""
@@ -311,67 +365,105 @@ class PortalScreen(Screen):
                     """Inject bridge script when page finishes loading."""
                     print(f"[UDAC] Page loaded: {url}")
                     if self.portal_screen.current_platform:
-                        try:
-                            # Inject the bridge script
-                            bridge_script = PortalScriptBuilder.build(
-                                self.portal_screen.current_platform
-                            )
-                            view.evaluateJavascript(bridge_script, None)
-                            print("[UDAC] Bridge script injected successfully")
-                        except Exception as e:
-                            print(f"[UDAC] Script injection failed: {e}")
-                            import traceback
-                            traceback.print_exc()
+                        # Use Clock.schedule_once for delayed injection
+                        # This prevents crashes from immediate JavaScript execution
+                        def delayed_inject(dt):
+                            try:
+                                # Inject the bridge script with error wrapping
+                                bridge_script = PortalScriptBuilder.build(
+                                    self.portal_screen.current_platform
+                                )
+                                # Wrap in try-catch for safety
+                                safe_script = f"try {{ {bridge_script} }} catch(e) {{ console.log('UDAC bridge error:', e); }}"
+                                view.evaluateJavascript(safe_script, None)
+                                print("[UDAC] ✓ Bridge script injected successfully")
+                            except Exception as e:
+                                print(f"[UDAC] Script injection failed: {e}")
+                                import traceback
+                                traceback.print_exc()
 
-            # Create WebView on UI thread
+                        Clock.schedule_once(delayed_inject, 1.5)
+
+            # Create WebView on UI thread with comprehensive error handling
             def create_webview(dt):
-                # Check if we're still on portal screen (race condition fix)
-                if not hasattr(self, 'manager') or self.manager.current != 'portal':
-                    print("[UDAC] Portal screen no longer active, skipping WebView creation")
-                    return
+                try:
+                    # Check if we're still on portal screen (race condition fix)
+                    if not hasattr(self, 'manager') or self.manager.current != 'portal':
+                        print("[UDAC] Portal screen no longer active, skipping WebView creation")
+                        return
 
-                # Create WebView
-                self.webview = WebView(activity)
-                settings = self.webview.getSettings()
-                settings.setJavaScriptEnabled(True)
-                settings.setDomStorageEnabled(True)
-                settings.setDatabaseEnabled(True)
-                settings.setAllowFileAccess(False)
-                settings.setAllowContentAccess(True)
-                settings.setMediaPlaybackRequiresUserGesture(False)
+                    print(f"[UDAC] Creating WebView for {url}...")
 
-                # Set up JavaScript bridge
-                self.bridge = UDACBridge(self)
-                self.webview.addJavascriptInterface(self.bridge, 'UDACBridge')
+                    # Create WebView
+                    self.webview = WebView(activity)
 
-                # Set custom WebViewClient
-                self.webview_client = UDACWebViewClient(self)
-                self.webview.setWebViewClient(self.webview_client)
+                    # Configure settings with error handling on each call
+                    try:
+                        settings = self.webview.getSettings()
+                        settings.setJavaScriptEnabled(True)
+                        settings.setDomStorageEnabled(True)
+                        settings.setDatabaseEnabled(True)
+                        settings.setAllowFileAccess(False)
+                        settings.setAllowContentAccess(True)
+                        settings.setMediaPlaybackRequiresUserGesture(False)
+                        # Enable modern WebView features for better compatibility
+                        settings.setMixedContentMode(0)  # MIXED_CONTENT_ALWAYS_ALLOW
+                        print("[UDAC] ✓ WebView settings configured")
+                    except Exception as e:
+                        print(f"[UDAC] Warning: Some WebView settings failed: {e}")
 
-                # Set WebChromeClient for better JS support
-                self.webview.setWebChromeClient(WebChromeClient())
+                    # Set up JavaScript bridge
+                    try:
+                        self.bridge = UDACBridge(self)
+                        self.webview.addJavascriptInterface(self.bridge, 'UDACBridge')
+                        print("[UDAC] ✓ JavaScript bridge added")
+                    except Exception as e:
+                        print(f"[UDAC] Warning: JavaScript bridge setup failed: {e}")
 
-                # Get the Android layout
-                layout = activity.findViewById(0x01020002)  # android.R.id.content
-                if layout:
-                    # Add WebView to Android layout
-                    params = LayoutParams(
-                        LayoutParams.MATCH_PARENT,
-                        LayoutParams.MATCH_PARENT
-                    )
-                    layout.addView(self.webview, params)
+                    # Set custom WebViewClient
+                    try:
+                        self.webview_client = UDACWebViewClient(self)
+                        self.webview.setWebViewClient(self.webview_client)
+                        print("[UDAC] ✓ WebViewClient set")
+                    except Exception as e:
+                        print(f"[UDAC] Warning: WebViewClient setup failed: {e}")
 
-                    # Load URL
-                    self.webview.loadUrl(url)
-                    print(f"[UDAC] WebView created and loading: {url}")
+                    # Set WebChromeClient for better JS support
+                    try:
+                        self.webview.setWebChromeClient(WebChromeClient())
+                        print("[UDAC] ✓ WebChromeClient set")
+                    except Exception as e:
+                        print(f"[UDAC] Warning: WebChromeClient setup failed: {e}")
 
-                    # Update placeholder
-                    self.webview_placeholder.text = f'Loading {self.current_platform.name}...\n(WebView active)'
-                else:
-                    print("[UDAC] Could not get Android layout")
-                    self.webview_placeholder.text = 'WebView initialization error'
+                    # Get the Android layout
+                    layout = activity.findViewById(0x01020002)  # android.R.id.content
+                    if layout:
+                        # Add WebView to Android layout
+                        params = LayoutParams(
+                            LayoutParams.MATCH_PARENT,
+                            LayoutParams.MATCH_PARENT
+                        )
+                        layout.addView(self.webview, params)
 
-            Clock.schedule_once(create_webview, 0.1)
+                        # Load URL
+                        self.webview.loadUrl(url)
+                        print(f"[UDAC] ✓ WebView created and loading: {url}")
+
+                        # Update placeholder
+                        self.webview_placeholder.text = f'Loading {self.current_platform.name}...\n(WebView active)'
+                    else:
+                        print("[UDAC] ERROR: Could not get Android layout")
+                        self.webview_placeholder.text = 'WebView initialization error\n(Could not find Android layout)'
+
+                except Exception as e:
+                    import traceback
+                    print(f"[UDAC] ERROR: WebView creation failed: {e}")
+                    print(traceback.format_exc())
+                    if hasattr(self, 'webview_placeholder'):
+                        self.webview_placeholder.text = f'WebView creation failed\n\n{str(e)}\n\nCheck logcat for details'
+
+            # Delay WebView creation slightly to ensure UI is ready
+            Clock.schedule_once(create_webview, 0.3)
 
         except Exception as e:
             import traceback
