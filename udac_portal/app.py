@@ -275,12 +275,15 @@ class UDACPortalApp(toga.App):
         self.portal_box.add(top_bar)
         
         # WebView - THE MAIN PORTAL
+        # NOTE: on_webview_load is NOT supported on Android, so we use delayed injection
         self.webview = toga.WebView(
             url=platform.base_url,
-            on_webview_load=self.on_webview_loaded,
             style=Pack(flex=1)
         )
         self.portal_box.add(self.webview)
+
+        # Inject JavaScript after a delay (Android workaround)
+        self.add_background_task(self.delayed_webview_setup)
         
         # UDAC Input Bar (Bottom)
         input_bar = toga.Box(style=Pack(
@@ -320,29 +323,30 @@ class UDACPortalApp(toga.App):
         # Start session
         SESSION.start_session(platform.id)
     
-    def on_webview_loaded(self, widget):
-        """Called when WebView finishes loading a page."""
+    async def delayed_webview_setup(self, app):
+        """
+        Android-compatible delayed JavaScript injection.
+
+        Since on_webview_load is not supported on Android, we inject JavaScript
+        after a delay to give the page time to load.
+        """
+        # Wait for page to load (increased delay for reliability)
+        await asyncio.sleep(2.0)
+
         if not (self.current_platform and self.webview):
             return
 
         @ivm_resilient(component="webview_injection", silent=False, use_circuit_breaker=True)
         def safe_inject():
             """IVM-protected script injection."""
-            script = PortalScriptBuilder.build(self.current_platform)
-            self.webview.evaluate_javascript(script)
-            print(f"[UDAC] Injected scripts for {self.current_platform.name}")
+            try:
+                script = PortalScriptBuilder.build(self.current_platform)
+                self.webview.evaluate_javascript(script)
+                print(f"[UDAC] ✓ Injected scripts for {self.current_platform.name}")
+            except Exception as e:
+                print(f"[UDAC] Warning: JavaScript injection failed (expected on some platforms): {e}")
 
-        async def delayed_inject():
-            await asyncio.sleep(0.5)
-            safe_inject()
-
-        # Use IVM async bridge for robust async/sync handling
-        def sync_fallback():
-            import time as _t
-            _t.sleep(0.5)
-            safe_inject()
-
-        IVMAsyncBridge.safe_create_task(delayed_inject(), fallback_sync=sync_fallback)
+        safe_inject()
     
     @ivm_resilient(component="send_press_handler", silent=False, use_circuit_breaker=True)
     def on_send_press(self, widget):
