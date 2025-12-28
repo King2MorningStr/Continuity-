@@ -269,6 +269,20 @@ def run_diagnostics():
     return report
 
 
+# Color palette for modern UI
+COLORS = {
+    'bg_primary': (0.04, 0.04, 0.12, 1),      # Deep space blue
+    'bg_secondary': (0.08, 0.08, 0.16, 1),    # Elevated surface
+    'bg_tertiary': (0.12, 0.11, 0.23, 1),     # Card background
+    'accent_primary': (0.39, 0.40, 0.95, 1),  # Indigo
+    'accent_success': (0.06, 0.73, 0.51, 1),  # Green
+    'accent_warning': (0.96, 0.62, 0.04, 1),  # Amber
+    'text_primary': (0.95, 0.96, 0.97, 1),    # High emphasis
+    'text_secondary': (0.61, 0.64, 0.69, 1),  # Medium emphasis
+    'text_tertiary': (0.42, 0.45, 0.50, 1),   # Low emphasis
+}
+
+
 class HomeScreen(Screen):
     """Home screen with platform selection."""
 
