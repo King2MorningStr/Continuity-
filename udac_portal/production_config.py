@@ -7,10 +7,20 @@ Production-ready configuration following IVM principles of system coherence.
 import os
 import time
 import json
+import tempfile
 from dataclasses import dataclass, asdict
 from typing import Dict, Any, Optional
 from pathlib import Path
-from platformdirs import user_data_dir
+
+# Try to import platformdirs, fallback to temp directory
+try:
+    from platformdirs import user_data_dir
+    PLATFORMDIRS_AVAILABLE = True
+except ImportError:
+    PLATFORMDIRS_AVAILABLE = False
+    def user_data_dir(app_name, app_author):
+        """Fallback when platformdirs not available."""
+        return os.path.join(tempfile.gettempdir(), app_name.replace(" ", "_").lower())
 
 APP_NAME = "UDAC Portal"
 APP_AUTHOR = "Sunni"

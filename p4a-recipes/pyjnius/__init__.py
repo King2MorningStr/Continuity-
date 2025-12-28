@@ -1,0 +1,81 @@
+from pythonforandroid.recipes.pyjnius import PyjniusRecipe
+import re
+
+
+class PyjniusPython3Recipe(PyjniusRecipe):
+    """
+    Custom pyjnius recipe with Python 3 compatibility patch.
+    Fixes ALL 'long' type issues in all pyjnius source files.
+    """
+
+    def build_arch(self, arch):
+        """Override build_arch to patch BEFORE Cython runs."""
+
+        # Apply patches FIRST, before calling super()
+        self.apply_python3_patches(arch)
+
+        # Now run the normal build
+        super().build_arch(arch)
+
+    def apply_python3_patches(self, arch):
+        """Apply Python 3 compatibility patches to all pyjnius source files."""
+        import os
+        import glob
+
+        build_dir = self.get_build_dir(arch.arch)
+        jnius_dir = os.path.join(build_dir, 'jnius')
+
+        if not os.path.exists(jnius_dir):
+            print(f"[UDAC] Warning: jnius directory not found at {jnius_dir}")
+            return
+
+        # Patch all .pxi and .pyx files
+        source_files = glob.glob(os.path.join(jnius_dir, '*.pxi')) + glob.glob(os.path.join(jnius_dir, '*.pyx'))
+
+        print(f"[UDAC] Patching {len(source_files)} pyjnius source files for Python 3 compatibility...")
+        total_replacements = 0
+
+        for source_file in source_files:
+            with open(source_file, 'r') as f:
+                content = f.read()
+
+            original_content = content
+
+            # Fix ALL 'long' type issues
+
+            # Pattern 1: isinstance(arg, (int, long)) -> isinstance(arg, int)
+            content = re.sub(r'\bisinstance\(([^,]+),\s*\(\s*int\s*,\s*long\s*\)\)', r'isinstance(\1, int)', content)
+
+            # Pattern 2: Dictionary keys - long: 'X' -> int: 'X' (will handle both int and long)
+            # Just remove long dictionary entries since int handles it in Python 3
+            content = re.sub(r'\s*long:\s*[\'"][A-Z][\'"]\s*,?\s*\n', '', content)
+
+            # Pattern 3: isinstance(arg, long)
+            content = re.sub(r'\bisinstance\([^,]+,\s*long\)', 'False', content)
+
+            # Pattern 4: or isinstance(arg, long) - just remove the check
+            content = re.sub(r'\s+or\s+isinstance\([^,]+,\s*long\)', '', content)
+
+            # Pattern 5: isinstance(arg, int) or (isinstance(arg, long) and ...) - simplify to just int check
+            content = re.sub(
+                r'isinstance\(([^,]+),\s*int\)\s+or\s+\(\s*isinstance\(\1,\s*long\)[^)]*\)',
+                r'isinstance(\1, int)',
+                content
+            )
+
+            if content != original_content:
+                replacements = original_content.count('long') - content.count('long')
+                with open(source_file, 'w') as f:
+                    f.write(content)
+                print(f"[UDAC]   ✓ {os.path.basename(source_file)}: {replacements} 'long' occurrences removed")
+                total_replacements += replacements
+
+        if total_replacements > 0:
+            print(f"[UDAC] Python 3 patch applied successfully! Total replacements: {total_replacements}")
+        else:
+            print("[UDAC] No 'long' types found - already patched or different version")
+
+
+recipe = PyjniusPython3Recipe()
+
+
