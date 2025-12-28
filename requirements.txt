@@ -1,4 +1,4 @@
 briefcase>=0.3.17
-toga>=0.4.0
-toga-android>=0.4.0
+kivy>=2.2.1
+pyjnius>=1.6.1
 platformdirs>=4.0.0
