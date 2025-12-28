@@ -721,12 +721,8 @@ class PortalScreen(Screen):
                     except Exception as e:
                         print(f"[UDAC] Warning: WebViewClient setup failed: {e}")
 
-                    # Set WebChromeClient for better JS support
-                    try:
-                        self.webview.setWebChromeClient(WebChromeClient())
-                        print("[UDAC] ✓ WebChromeClient set")
-                    except Exception as e:
-                        print(f"[UDAC] Warning: WebChromeClient setup failed: {e}")
+                    # Note: Removed WebChromeClient to avoid Handler initialization issues
+                    # Basic WebView functionality works without it
 
                     # Get the Android layout
                     layout = activity.findViewById(0x01020002)  # android.R.id.content
@@ -742,8 +738,9 @@ class PortalScreen(Screen):
                         self.webview.loadUrl(url)
                         print(f"[UDAC] ✓ WebView created and loading: {url}")
 
-                        # Update placeholder
-                        self.webview_placeholder.text = f'Loading {self.current_platform.name}...\n(WebView active)'
+                        # Hide the Kivy placeholder so WebView is visible
+                        self.webview_container.clear_widgets()
+                        print("[UDAC] ✓ Placeholder cleared, WebView should be visible")
                     else:
                         print("[UDAC] ERROR: Could not get Android layout")
                         self.webview_placeholder.text = 'WebView initialization error\n(Could not find Android layout)'
