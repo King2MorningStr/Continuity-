@@ -670,7 +670,8 @@ class PortalScreen(Screen):
                                 )
                                 # Wrap in try-catch for safety
                                 safe_script = f"try {{ {bridge_script} }} catch(e) {{ console.log('UDAC bridge error:', e); }}"
-                                view.evaluateJavascript(safe_script, None)
+                                # Use loadUrl instead of evaluateJavascript to avoid Handler null reference
+                                view.loadUrl(f"javascript:{safe_script}")
                                 print("[UDAC] ✓ Bridge script injected successfully")
                             except Exception as e:
                                 print(f"[UDAC] Script injection failed: {e}")
@@ -799,7 +800,8 @@ class PortalScreen(Screen):
                     self.current_platform,
                     payload.final_prompt_text
                 )
-                self.webview.evaluateJavascript(injection_script, None)
+                # Use loadUrl instead of evaluateJavascript to avoid Handler null reference
+                self.webview.loadUrl(f"javascript:{injection_script}")
                 print(f"[UDAC] Message injected: +{payload.tokens_added} tokens from {sources}")
             except Exception as e:
                 print(f"[UDAC] Injection error: {e}")
