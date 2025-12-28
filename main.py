@@ -497,18 +497,27 @@ class PortalScreen(Screen):
 
         layout.add_widget(top_bar)
 
-        # WebView info - native WebView will be full screen when active
-        self.webview_container = BoxLayout(size_hint=(1, 0.77))
+        # WebView container with browser button
+        self.webview_container = BoxLayout(orientation='vertical', size_hint=(1, 0.77), spacing=10, padding=10)
 
+        # Info label (hidden placeholder for compatibility)
+        self.webview_placeholder = Label(
+            text='',
+            size_hint=(1, 0.2),
+            font_size='12sp',
+            color=(0.5, 0.6, 0.7, 1)
+        )
+        self.webview_container.add_widget(self.webview_placeholder)
+
+        # Open in browser button
         open_browser_btn = Button(
-            text='🌐 OPEN IN BROWSER\n\nWebView embedding not yet supported\nClick to open platform in system browser',
-            size_hint=(1, None),
-            height=200,
+            text='🌐 OPEN IN BROWSER\n\nTap to open platform in system browser',
+            size_hint=(1, 0.8),
             on_press=self.open_in_browser,
             background_color=(0.1, 0.3, 0.5, 1),
             background_normal='',
             color=(0, 0.9, 1, 1),
-            font_size='14sp',
+            font_size='16sp',
             bold=True
         )
         self.webview_container.add_widget(open_browser_btn)
