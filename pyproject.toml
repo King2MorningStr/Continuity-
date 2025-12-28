@@ -15,13 +15,15 @@ formal_name = "UDAC Portal"
 license = "MIT"
 sources = ["udac_portal"]
 requires = [
-    "toga-core>=0.4.0,<0.5.0",
+    "kivy>=2.2.1",
+    "pyjnius>=1.6.1",
     "platformdirs>=4.0.0",
 ]
 
 [tool.briefcase.app.udac_portal.android]
 requires = [
-    "toga-android>=0.4.0,<0.5.0",
+    "kivy>=2.2.1",
+    "pyjnius>=1.6.1",
 ]
 
 # Android-specific permissions
