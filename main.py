@@ -701,29 +701,42 @@ class PortalScreen(Screen):
                 @java_method('()V')
                 def run(self):
                     """Create WebView on Android UI thread - critical for proper initialization."""
+                    def update_placeholder(text):
+                        """Update placeholder text on Kivy thread so user can see progress/errors."""
+                        Clock.schedule_once(lambda dt: setattr(self.portal_screen.webview_placeholder, 'text', text), 0)
+
                     try:
                         print(f"[UDAC] ✓ Running on Android UI thread - creating WebView for {self.url}")
+                        update_placeholder(f'Creating WebView...\n\nLoading {self.portal_screen.current_platform.name}')
 
                         # Create WebView with activity context - NOW ON CORRECT THREAD
                         self.portal_screen.webview = WebView(activity)
 
                         if not self.portal_screen.webview:
-                            print("[UDAC] ERROR: WebView constructor returned null")
+                            error_msg = "WebView constructor returned null\n\nYour device may not support WebView"
+                            print(f"[UDAC] ERROR: {error_msg}")
+                            update_placeholder(error_msg)
                             return
 
                         print(f"[UDAC] ✓ WebView created successfully")
+                        update_placeholder(f'WebView created...\n\nConfiguring settings')
 
                         # Configure WebView settings
                         settings = self.portal_screen.webview.getSettings()
-                        if settings:
-                            settings.setJavaScriptEnabled(True)
-                            settings.setDomStorageEnabled(True)
-                            settings.setDatabaseEnabled(True)
-                            settings.setAllowFileAccess(False)
-                            settings.setAllowContentAccess(True)
-                            settings.setMediaPlaybackRequiresUserGesture(False)
-                            settings.setMixedContentMode(0)
-                            print("[UDAC] ✓ WebView settings configured")
+                        if not settings:
+                            error_msg = "getSettings() returned null\n\nWebView initialization failed"
+                            print(f"[UDAC] ERROR: {error_msg}")
+                            update_placeholder(error_msg)
+                            return
+
+                        settings.setJavaScriptEnabled(True)
+                        settings.setDomStorageEnabled(True)
+                        settings.setDatabaseEnabled(True)
+                        settings.setAllowFileAccess(False)
+                        settings.setAllowContentAccess(True)
+                        settings.setMediaPlaybackRequiresUserGesture(False)
+                        settings.setMixedContentMode(0)
+                        print("[UDAC] ✓ WebView settings configured")
 
                         # Set up JavaScript bridge
                         bridge = UDACBridge(self.portal_screen)
@@ -737,25 +750,32 @@ class PortalScreen(Screen):
 
                         # Add WebView to Android layout
                         layout = activity.findViewById(0x01020002)
-                        if layout:
-                            params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-                            layout.addView(self.portal_screen.webview, params)
-                            print("[UDAC] ✓ WebView added to layout")
+                        if not layout:
+                            error_msg = "Could not get Android layout\n\nfindViewById returned null"
+                            print(f"[UDAC] ERROR: {error_msg}")
+                            update_placeholder(error_msg)
+                            return
 
-                            # Load URL
-                            self.portal_screen.webview.loadUrl(self.url)
-                            print(f"[UDAC] ✓ Loading: {self.url}")
+                        params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                        layout.addView(self.portal_screen.webview, params)
+                        print("[UDAC] ✓ WebView added to layout")
 
-                            # Clear Kivy placeholder (schedule on Kivy thread)
-                            Clock.schedule_once(lambda dt: self.portal_screen.webview_container.clear_widgets(), 0)
+                        # Load URL
+                        update_placeholder(f'Loading website...\n\n{self.url}')
+                        self.portal_screen.webview.loadUrl(self.url)
+                        print(f"[UDAC] ✓ Loading: {self.url}")
 
-                        else:
-                            print("[UDAC] ERROR: Could not get Android layout")
+                        # Clear Kivy placeholder (schedule on Kivy thread)
+                        Clock.schedule_once(lambda dt: self.portal_screen.webview_container.clear_widgets(), 0.5)
+                        print("[UDAC] ✓ WebView fully initialized")
 
                     except Exception as e:
                         import traceback
+                        error_trace = traceback.format_exc()
+                        error_msg = f'WebView Creation Failed\n\n{str(e)}\n\nCheck logcat for details'
                         print(f"[UDAC] ERROR in WebView creation: {e}")
-                        traceback.print_exc()
+                        print(error_trace)
+                        update_placeholder(error_msg)
 
             # CRITICAL FIX: Execute WebView creation on Android's main UI thread
             # Using activity.runOnUiThread() ensures proper thread context for WebView
