@@ -725,12 +725,21 @@ class PortalScreen(Screen):
                         # We'll inject the script using a timer instead
 
                         # Add WebView to Android layout
-                        layout = activity.findViewById(0x01020002)
-                        if not layout:
-                            error_msg = "Could not get Android layout\n\nfindViewById returned null"
+                        # android.R.id.content returns the content FrameLayout
+                        content_view = activity.findViewById(0x01020002)  # android.R.id.content
+                        if not content_view:
+                            error_msg = "Could not get Android content view\n\nfindViewById returned null"
                             print(f"[UDAC] ERROR: {error_msg}")
                             update_placeholder(error_msg)
                             return
+
+                        # Cast to ViewGroup so we can call addView()
+                        # (findViewById returns View but we need ViewGroup)
+                        from jnius import cast
+                        ViewGroup = autoclass('android.view.ViewGroup')
+                        layout = cast('android.view.ViewGroup', content_view)
+
+                        print(f"[UDAC] ✓ Got ViewGroup: {layout}")
 
                         params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
                         layout.addView(self.portal_screen.webview, params)
