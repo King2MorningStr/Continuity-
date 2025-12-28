@@ -663,40 +663,8 @@ class PortalScreen(Screen):
                             message
                         )
 
-            # Custom WebViewClient to inject scripts on page load
-            # Store portal_screen as class variable to avoid constructor parameter
-            class UDACWebViewClient(PythonJavaClass):
-                __javainterfaces__ = ['android/webkit/WebViewClient']
-                __javacontext__ = 'app'
-
-                # Class variable to store portal screen reference
-                portal_screen_ref = None
-
-                def __init__(self):
-                    """Zero-argument constructor required for Java instantiation."""
-                    super().__init__()
-
-                @java_method('(Landroid/webkit/WebView;Ljava/lang/String;)V')
-                def onPageFinished(self, view, url):
-                    """Inject bridge script when page finishes loading."""
-                    print(f"[UDAC] Page loaded: {url}")
-                    if UDACWebViewClient.portal_screen_ref and UDACWebViewClient.portal_screen_ref.current_platform:
-                        # Inject directly without Clock.schedule_once to avoid Handler errors
-                        # (onPageFinished is already called on UI thread, no need for Clock)
-                        try:
-                            # Inject the bridge script with error wrapping
-                            bridge_script = PortalScriptBuilder.build(
-                                UDACWebViewClient.portal_screen_ref.current_platform
-                            )
-                            # Wrap in try-catch for safety
-                            safe_script = f"try {{ {bridge_script} }} catch(e) {{ console.log('UDAC bridge error:', e); }}"
-                            # Use loadUrl to execute JavaScript
-                            view.loadUrl(f"javascript:{safe_script}")
-                            print("[UDAC] ✓ Bridge script injected successfully")
-                        except Exception as e:
-                            print(f"[UDAC] Script injection failed: {e}")
-                            import traceback
-                            traceback.print_exc()
+            # Note: WebViewClient is a CLASS not an INTERFACE - cannot implement with PythonJavaClass
+            # Instead, we'll inject the bridge script using a timer after page loads
 
             # WebView creation Runnable - MUST execute on Android UI thread (not Kivy thread)
             class WebViewRunnable(PythonJavaClass):
@@ -753,11 +721,8 @@ class PortalScreen(Screen):
                         self.portal_screen.webview.addJavascriptInterface(bridge, 'UDACBridge')
                         print("[UDAC] ✓ JavaScript bridge added")
 
-                        # Set WebViewClient
-                        UDACWebViewClient.portal_screen_ref = self.portal_screen
-                        client = UDACWebViewClient()
-                        self.portal_screen.webview.setWebViewClient(client)
-                        print("[UDAC] ✓ WebViewClient set")
+                        # Don't set WebViewClient - it's a class not an interface
+                        # We'll inject the script using a timer instead
 
                         # Add WebView to Android layout
                         layout = activity.findViewById(0x01020002)
@@ -775,6 +740,20 @@ class PortalScreen(Screen):
                         update_placeholder(f'Loading website...\n\n{self.url}')
                         self.portal_screen.webview.loadUrl(self.url)
                         print(f"[UDAC] ✓ Loading: {self.url}")
+
+                        # Inject bridge script after page loads (using timer since we can't use WebViewClient)
+                        def inject_bridge_script(dt):
+                            try:
+                                if self.portal_screen.webview and self.portal_screen.current_platform:
+                                    bridge_script = PortalScriptBuilder.build(self.portal_screen.current_platform)
+                                    safe_script = f"try {{ {bridge_script} }} catch(e) {{ console.log('UDAC bridge error:', e); }}"
+                                    self.portal_screen.webview.loadUrl(f"javascript:{safe_script}")
+                                    print("[UDAC] ✓ Bridge script injected via timer")
+                            except Exception as e:
+                                print(f"[UDAC] Bridge injection error: {e}")
+
+                        # Schedule bridge injection 2 seconds after page load starts
+                        Clock.schedule_once(inject_bridge_script, 2.0)
 
                         # Clear Kivy placeholder (schedule on Kivy thread)
                         Clock.schedule_once(lambda dt: self.portal_screen.webview_container.clear_widgets(), 0.5)
