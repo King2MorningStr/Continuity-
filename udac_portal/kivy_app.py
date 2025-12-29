@@ -455,6 +455,7 @@ class PortalScreen(Screen):
         self.rect = None
         self._destroying_webview = False
         self._ui_thread_helper = None
+        self.pipeline_events = []
         self.build_ui()
 
     def _update_rect(self, instance, value):
@@ -519,6 +520,17 @@ class PortalScreen(Screen):
         )
         layout.add_widget(self.context_label)
 
+        # Pipeline status banner so we can see every stage from selection to
+        # bridge injection without relying solely on logcat.
+        self.pipeline_status_label = Label(
+            text='▸ PIPELINE: awaiting platform selection',
+            size_hint=(1, 0.06),
+            font_size='11sp',
+            color=(0.8, 0.85, 1, 1),
+            bold=True
+        )
+        layout.add_widget(self.pipeline_status_label)
+
         # Input bar with modern styling
         input_bar = BoxLayout(size_hint=(1, 0.11), spacing=8)
 
@@ -552,6 +564,7 @@ class PortalScreen(Screen):
     def load_platform(self, platform):
         """Load a platform into the WebView."""
         print(f"[UDAC] load_platform called for: {platform.name}")
+        self._pipeline_step("platform", "ok", f"Selected {platform.name}")
 
         # Clean up any existing WebView before creating a new one. Some devices
         # will crash with "child already has a parent" if we attempt to add the
@@ -567,12 +580,15 @@ class PortalScreen(Screen):
         try:
             SESSION.start_session(platform.id)
             print("[UDAC] Session started")
+            self._pipeline_step("session", "ok", "Session ready")
         except Exception as e:
             print(f"[UDAC] Session start error: {e}")
+            self._pipeline_step("session", "fail", str(e))
 
         # Check if jnius is available before attempting WebView
         if not JNIUS_AVAILABLE:
             print("[UDAC] jnius not available, showing fallback message")
+            self._pipeline_step("webview", "skip", "jnius unavailable")
             self.webview_placeholder.text = (
                 f'━━━ WEBVIEW UNAVAILABLE ━━━\n\n'
                 f'🌐 {platform.name.upper()}\n\n'
@@ -632,13 +648,19 @@ class PortalScreen(Screen):
                     super().__init__()
                     self.portal_screen = portal_screen
 
+                @java_method('()V')
+                def onBridgeReady(self):
+                    """Called by JS when the bridge wiring is live."""
+                    self.portal_screen.on_bridge_ready()
+
                 @java_method('(Ljava/lang/String;)V')
                 def onPlatformUserMessageDetected(self, message):
                     """Called when user message is detected on platform."""
                     print(f"[UDAC] User message detected: {message[:100]}...")
-                    # Log the message
+                    # Route through session manager so continuity + logging stay
+                    # aligned with the active thread on the platform.
                     if self.portal_screen.current_platform:
-                        LOGGER.log_user_prompt(
+                        SESSION.on_platform_user_message(
                             self.portal_screen.current_platform.id,
                             message
                         )
@@ -667,6 +689,7 @@ class PortalScreen(Screen):
                 def onPageFinished(self, view, url):
                     """Inject bridge script when page finishes loading."""
                     print(f"[UDAC] Page loaded: {url}")
+                    self.portal_screen.on_page_finished(url)
                     if self.portal_screen.current_platform:
                         # Inject directly without Clock.schedule_once to avoid Handler errors
                         # (onPageFinished is already called on UI thread, no need for Clock)
@@ -680,10 +703,16 @@ class PortalScreen(Screen):
                             # Use loadUrl to execute JavaScript
                             view.loadUrl(f"javascript:{safe_script}")
                             print("[UDAC] ✓ Bridge script injected successfully")
+                            self.portal_screen._pipeline_step(
+                                "bridge",
+                                "ok",
+                                f"Injected on {url}"
+                            )
                         except Exception as e:
                             print(f"[UDAC] Script injection failed: {e}")
                             import traceback
                             traceback.print_exc()
+                            self.portal_screen._pipeline_step("bridge", "fail", str(e))
 
             # Create WebView on UI thread with comprehensive error handling
             def create_webview(dt):
@@ -694,6 +723,7 @@ class PortalScreen(Screen):
                         return
 
                     print(f"[UDAC] Creating WebView for {url}...")
+                    self._pipeline_step("webview", "init", "Dispatching create")
 
                     # Create WebView
                     self.webview = WebView(activity)
@@ -751,6 +781,7 @@ class PortalScreen(Screen):
                         try:
                             layout.addView(self.webview, params)
                             added = True
+                            self._pipeline_step("webview", "ok", "Attached to root layout")
                         except Exception as e:
                             print(f"[UDAC] addView on layout failed: {e}")
 
@@ -759,19 +790,23 @@ class PortalScreen(Screen):
                             activity.addContentView(self.webview, params)
                             added = True
                             print("[UDAC] WebView attached via addContentView fallback")
+                            self._pipeline_step("webview", "ok", "Attached via addContentView")
                         except Exception as e:
                             print(f"[UDAC] ERROR: Could not attach WebView: {e}")
+                            self._pipeline_step("webview", "fail", str(e))
 
                     if added:
                         # Load URL
                         self.webview.loadUrl(url)
                         print(f"[UDAC] ✓ WebView created and loading: {url}")
+                        self._pipeline_step("platform", "loading", url)
 
                         # Update placeholder
                         self.webview_placeholder.text = f'Loading {self.current_platform.name}...\n(WebView active)'
                     else:
                         print("[UDAC] ERROR: Could not get Android layout")
                         self.webview_placeholder.text = 'WebView initialization error\n(Could not attach to Android layout)'
+                        self._pipeline_step("webview", "fail", "No layout")
 
                 except Exception as e:
                     import traceback
@@ -779,6 +814,7 @@ class PortalScreen(Screen):
                     print(traceback.format_exc())
                     if hasattr(self, 'webview_placeholder'):
                         self.webview_placeholder.text = f'WebView creation failed\n\n{str(e)}\n\nCheck logcat for details'
+                    self._pipeline_step("webview", "fail", str(e))
 
             # Always create the WebView on the Android UI thread to avoid
             # "Only the original thread that created a view hierarchy can touch
@@ -805,15 +841,18 @@ class PortalScreen(Screen):
 
                 activity.runOnUiThread(_CreateWebViewRunnable(create_webview))
                 print("[UDAC] WebView creation dispatched to UI thread")
+                self._pipeline_step("webview", "queued", "runOnUiThread")
             except Exception as e:
                 print(f"[UDAC] runOnUiThread failed ({e}), falling back to Clock")
                 Clock.schedule_once(create_webview, 0.3)
+                self._pipeline_step("webview", "queued", "Clock fallback")
 
         except Exception as e:
             import traceback
             print(f"[UDAC] WebView error: {e}")
             print(traceback.format_exc())
             self.webview_placeholder.text = f'WebView unavailable\nError: {e}\n\n(Use mobile browser to access AI platforms)'
+            self._pipeline_step("webview", "fail", str(e))
 
     def send_message(self, instance):
         """Send message with continuity enrichment."""
@@ -848,16 +887,21 @@ class PortalScreen(Screen):
                     self.current_platform,
                     payload.final_prompt_text
                 )
-                # Use loadUrl instead of evaluateJavascript to avoid Handler null reference
-                self.webview.loadUrl(f"javascript:{injection_script}")
+
+                def _inject(_: object):
+                    # Use loadUrl instead of evaluateJavascript to avoid Handler null
+                    # reference, but always dispatch to the UI thread since WebView
+                    # operations are not thread-safe on Android.
+                    self.webview.loadUrl(f"javascript:{injection_script}")
+
+                self._run_on_ui_thread(_inject, description="inject-message")
                 print(f"[UDAC] Message injected: +{payload.tokens_added} tokens from {sources}")
             except Exception as e:
                 print(f"[UDAC] Injection error: {e}")
-                # Fallback: just log
-                LOGGER.log_user_prompt(self.current_platform.id, raw_text)
         else:
             print(f"[UDAC] WebView not ready, logging only: {payload.final_prompt_text[:100]}...")
-            LOGGER.log_user_prompt(self.current_platform.id, raw_text)
+            # The user submission was already logged via SessionManager; just
+            # surface the warning without crashing on missing logger helpers.
 
         # Clear input
         self.input_field.text = ''
@@ -963,6 +1007,26 @@ class PortalScreen(Screen):
         except Exception:
             # Last resort: attempt cleanup synchronously
             _cleanup(None)
+
+    def on_page_finished(self, url: str):
+        """Record that a page finished loading."""
+        self._pipeline_step("platform", "ready", url)
+
+    def on_bridge_ready(self):
+        """Record that the JS bridge confirmed it is live."""
+        self._pipeline_step("bridge", "ok", "Bridge handshake received")
+        self.context_label.text = '▸ CONTINUITY: BRIDGE READY'
+
+    def _pipeline_step(self, step: str, status: str, detail: str = ""):
+        """Track pipeline stages and surface them in the UI."""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        entry = f"[{timestamp}] {step}: {status}{(' - ' + detail) if detail else ''}"
+        print(f"[UDAC][PIPELINE] {entry}")
+
+        # Keep the last few events for readability
+        self.pipeline_events.append(entry)
+        self.pipeline_events = self.pipeline_events[-6:]
+        self.pipeline_status_label.text = "\n".join(self.pipeline_events)
 
 
 class SettingsScreen(Screen):

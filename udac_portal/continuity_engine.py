@@ -211,7 +211,17 @@ class ContinuityEngine:
             context_sources=[]
         )
 
-        if not self.settings.continuity_enabled or self.settings.injection_strength == 0:
+        # Always attach the user turn to the active thread so downstream
+        # continuity (and later AI responses) can align to the right
+        # conversation even when enrichment is disabled.
+        try:
+            self.record_user_input(platform_id, raw_user_text)
+        except Exception as e:
+            print(f"[ContinuityEngine] Failed to record user input: {e}")
+
+        if (not self.settings.continuity_enabled or
+                self.settings.injection_strength == 0 or
+                not raw_user_text.strip()):
             return default_payload
 
         try:
@@ -228,7 +238,6 @@ class ContinuityEngine:
             # Free tier safety clamps
             if not is_premium:
                 self.settings.platform_isolation_mode = False
-                self.settings.cross_platform_insights = False
                 self.settings.injection_strength = min(self.settings.injection_strength, 5)
                 self.settings.max_context_tokens = min(self.settings.max_context_tokens, 1200)
 
@@ -242,9 +251,6 @@ class ContinuityEngine:
                 thread.turns = thread.turns[-250:]
                 print(f"[IVM] Pruned thread {thread_id} to maintain equilibrium")
 
-            # Record the user input
-            thread.add_turn("user", raw_user_text)
-            
             # Build continuity context
             context_parts = []
             sources = []
@@ -304,22 +310,52 @@ class ContinuityEngine:
         """
         with self._lock:
             thread_id = self.active_thread_ids.get(platform_id)
-            if thread_id:
-                thread = self.get_or_create_thread(platform_id, thread_id)
-                thread.add_turn("assistant", output_text)
+            thread = self.get_or_create_thread(platform_id, thread_id)
+            thread.add_turn("assistant", output_text)
 
-                # IVM Memory Management: Prevent unbounded memory growth
-                IVMMemoryManager.bounded_dict(self.global_threads, max_size=100,
-                    key_accessor=lambda t: t.last_active)
+            # IVM Memory Management: Prevent unbounded memory growth
+            IVMMemoryManager.bounded_dict(
+                self.global_threads,
+                max_size=100,
+                key_accessor=lambda t: t.last_active
+            )
 
-                # Update cross-platform memory
-                if self.settings.cross_platform_insights:
-                    self._update_cross_platform_memory(platform_id, output_text)
-                
-                # Extract topics for user profile
-                self._extract_topics(output_text)
-                
-                self._save_state()
+            # Update cross-platform memory even on free tier so we always
+            # accumulate insights for later continuity. Feature gates can
+            # apply at injection time rather than skipping collection.
+            self._update_cross_platform_memory(platform_id, output_text)
+
+            # Extract topics for user profile
+            self._extract_topics(output_text)
+
+            self._save_state()
+
+    @ivm_resilient(component="record_user_input", silent=True, use_circuit_breaker=False)
+    def record_user_input(self, platform_id: str, user_text: str, thread_id: Optional[str] = None):
+        """
+        Record a user turn so continuity threads stay aligned with real input.
+
+        Even when enrichment is disabled, storing user turns keeps the
+        conversation timeline intact for later AI outputs and stats.
+        """
+        if not user_text:
+            return None
+
+        with self._lock:
+            thread = self.get_or_create_thread(platform_id, thread_id)
+            thread.add_turn("user", user_text)
+
+            # Track topics early so suggestions improve before AI replies arrive.
+            self._extract_topics(user_text)
+
+            IVMMemoryManager.bounded_dict(
+                self.global_threads,
+                max_size=100,
+                key_accessor=lambda t: t.last_active
+            )
+
+            self._save_state()
+            return thread.thread_id
     
     def _summarize_recent_turns(self, turns: List[ConversationTurn]) -> str:
         """Create a compressed summary of recent turns."""
