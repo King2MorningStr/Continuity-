@@ -228,7 +228,6 @@ class ContinuityEngine:
             # Free tier safety clamps
             if not is_premium:
                 self.settings.platform_isolation_mode = False
-                self.settings.cross_platform_insights = False
                 self.settings.injection_strength = min(self.settings.injection_strength, 5)
                 self.settings.max_context_tokens = min(self.settings.max_context_tokens, 1200)
 
@@ -304,22 +303,25 @@ class ContinuityEngine:
         """
         with self._lock:
             thread_id = self.active_thread_ids.get(platform_id)
-            if thread_id:
-                thread = self.get_or_create_thread(platform_id, thread_id)
-                thread.add_turn("assistant", output_text)
+            thread = self.get_or_create_thread(platform_id, thread_id)
+            thread.add_turn("assistant", output_text)
 
-                # IVM Memory Management: Prevent unbounded memory growth
-                IVMMemoryManager.bounded_dict(self.global_threads, max_size=100,
-                    key_accessor=lambda t: t.last_active)
+            # IVM Memory Management: Prevent unbounded memory growth
+            IVMMemoryManager.bounded_dict(
+                self.global_threads,
+                max_size=100,
+                key_accessor=lambda t: t.last_active
+            )
 
-                # Update cross-platform memory
-                if self.settings.cross_platform_insights:
-                    self._update_cross_platform_memory(platform_id, output_text)
-                
-                # Extract topics for user profile
-                self._extract_topics(output_text)
-                
-                self._save_state()
+            # Update cross-platform memory even on free tier so we always
+            # accumulate insights for later continuity. Feature gates can
+            # apply at injection time rather than skipping collection.
+            self._update_cross_platform_memory(platform_id, output_text)
+
+            # Extract topics for user profile
+            self._extract_topics(output_text)
+
+            self._save_state()
     
     def _summarize_recent_turns(self, turns: List[ConversationTurn]) -> str:
         """Create a compressed summary of recent turns."""
