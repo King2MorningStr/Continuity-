@@ -164,6 +164,9 @@ if (document.readyState === 'loading') {
         script = template
         for k, v in replacements.items():
             script = script.replace(k, v)
+        # Signal bridge readiness back to Python so the pipeline can confirm
+        # end-to-end wiring before a user sends the first message.
+        script += "\ntry { if (window.UDACBridge && window.UDACBridge.onBridgeReady) { window.UDACBridge.onBridgeReady(); } } catch (e) {}\n"
         return script
 
     @staticmethod

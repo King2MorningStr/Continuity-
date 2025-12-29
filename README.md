@@ -65,7 +65,7 @@ UDAC Portal is a **browser-based approach** that:
 ### 6 Core Modules
 
 1. **PlatformRegistry**: Defines AI platforms and DOM selectors
-2. **PortalUI**: Home, Session, Settings screens (Toga)
+2. **PortalUI**: Home, Session, Settings screens (Kivy via `udac_portal.kivy_app`)
 3. **SessionManager**: Routes events between components
 4. **ContinuityEngine**: The DMC brain - compresses history, generates context
 5. **ScriptBuilder**: Generates JS for DOM observation/injection
@@ -90,8 +90,8 @@ UDAC Portal just needs:
 # Install Python 3.11+
 python --version  # Should be 3.11+
 
-# Install Briefcase
-pip install briefcase toga-android
+# Install Briefcase (used for packaging metadata)
+pip install briefcase
 ```
 
 ### Build Locally
