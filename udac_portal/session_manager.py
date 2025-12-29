@@ -24,6 +24,7 @@ class ActiveSession:
     is_live_mode: bool = False
     messages_sent: int = 0
     messages_received: int = 0
+    logged_start: bool = False
 
 
 class SessionManager:
@@ -67,6 +68,12 @@ class SessionManager:
             if platform_id in self.active_sessions:
                 session = self.active_sessions[platform_id]
                 session.last_activity = time.time()
+                if not session.logged_start:
+                    try:
+                        self._get_logger().log_session_start(platform_id, session.thread_id)
+                        session.logged_start = True
+                    except Exception as exc:
+                        print(f"[SessionManager] Failed to log session start: {exc}")
             else:
                 thread_id = f"{platform_id}_{int(time.time())}"
                 session = ActiveSession(
@@ -74,7 +81,16 @@ class SessionManager:
                     thread_id=thread_id
                 )
                 self.active_sessions[platform_id] = session
-            
+
+                # Record the session start immediately so the logger captures
+                # which platform/thread the user is engaging with before any
+                # messages flow.
+                try:
+                    self._get_logger().log_session_start(platform_id, thread_id)
+                    session.logged_start = True
+                except Exception as exc:
+                    print(f"[SessionManager] Failed to log session start: {exc}")
+
             self.current_platform_id = platform_id
             return session
     
@@ -247,6 +263,11 @@ class SessionManager:
     def shutdown(self):
         """Clean shutdown."""
         with self._lock:
+            for session in list(self.active_sessions.values()):
+                try:
+                    self._get_logger().log_session_end(session.platform_id, session.thread_id)
+                except Exception as exc:
+                    print(f"[SessionManager] Failed to log session end: {exc}")
             self._get_logger().shutdown()
             self.active_sessions.clear()
 

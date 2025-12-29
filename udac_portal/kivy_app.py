@@ -880,6 +880,10 @@ class PortalScreen(Screen):
         sources = ", ".join(payload.context_sources) if payload.context_sources else "LOCAL"
         self.context_label.text = f'▸ +{payload.tokens_added} TOKENS | SRC: {sources.upper()}'
 
+        # Capture thread id for logging
+        session = SESSION.get_current_session()
+        thread_id = session.thread_id if session else None
+
         # Inject into WebView via JavaScript
         if self.webview:
             try:
@@ -896,12 +900,46 @@ class PortalScreen(Screen):
 
                 self._run_on_ui_thread(_inject, description="inject-message")
                 print(f"[UDAC] Message injected: +{payload.tokens_added} tokens from {sources}")
+                self._pipeline_step("inject", "ok", f"{self.current_platform.name}: +{payload.tokens_added} tokens")
+                LOGGER.log_injection_delivery(
+                    self.current_platform.id,
+                    payload.final_prompt_text,
+                    payload.tokens_added,
+                    thread_id,
+                    context_sources=payload.context_sources,
+                    success=True,
+                )
             except Exception as e:
                 print(f"[UDAC] Injection error: {e}")
+                self._pipeline_step("inject", "fail", str(e))
+                try:
+                    LOGGER.log_injection_delivery(
+                        self.current_platform.id,
+                        payload.final_prompt_text,
+                        payload.tokens_added,
+                        thread_id,
+                        context_sources=payload.context_sources,
+                        success=False,
+                        detail=str(e),
+                    )
+                except Exception:
+                    pass
         else:
             print(f"[UDAC] WebView not ready, logging only: {payload.final_prompt_text[:100]}...")
             # The user submission was already logged via SessionManager; just
             # surface the warning without crashing on missing logger helpers.
+            try:
+                LOGGER.log_injection_delivery(
+                    self.current_platform.id,
+                    payload.final_prompt_text,
+                    payload.tokens_added,
+                    thread_id,
+                    context_sources=payload.context_sources,
+                    success=False,
+                    detail="webview-not-ready",
+                )
+            except Exception:
+                pass
 
         # Clear input
         self.input_field.text = ''

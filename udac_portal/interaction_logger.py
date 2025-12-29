@@ -38,19 +38,22 @@ except Exception:
 class InteractionEvent:
     """A single interaction event."""
     event_id: str
-    event_type: str  # "user_input", "ai_output", "transcript_chunk", "live_mode_change"
+    event_type: str  # "user_input", "ai_output", "transcript_chunk", "live_mode_change", "session_start", "session_end", "injection_delivery"
     platform_id: str
     timestamp: float = field(default_factory=time.time)
-    
+
     # Content fields
     raw_text: Optional[str] = None
     enriched_text: Optional[str] = None
     continuity_summary: Optional[str] = None
-    
+    context_sources: Optional[List[str]] = None
+
     # Metadata
     thread_id: Optional[str] = None
     tokens_added: int = 0
     live_mode: bool = False
+    success: Optional[bool] = None
+    detail: Optional[str] = None
     
     def to_dict(self) -> dict:
         return asdict(self)
@@ -201,6 +204,54 @@ class InteractionLogger:
                 event_type="live_mode_change",
                 platform_id=platform_id,
                 live_mode=active,
+            )
+            self._record_event(event)
+
+    def log_session_start(self, platform_id: str, thread_id: str):
+        """Log the beginning of a platform session."""
+        with self._lock:
+            event = InteractionEvent(
+                event_id=self._generate_event_id(),
+                event_type="session_start",
+                platform_id=platform_id,
+                thread_id=thread_id,
+            )
+            self._record_event(event)
+
+    def log_session_end(self, platform_id: str, thread_id: str):
+        """Log the conclusion of a platform session."""
+        with self._lock:
+            event = InteractionEvent(
+                event_id=self._generate_event_id(),
+                event_type="session_end",
+                platform_id=platform_id,
+                thread_id=thread_id,
+            )
+            self._record_event(event)
+
+    def log_injection_delivery(
+        self,
+        platform_id: str,
+        enriched_text: str,
+        tokens_added: int,
+        thread_id: Optional[str],
+        *,
+        context_sources: Optional[List[str]] = None,
+        success: bool = True,
+        detail: str = "",
+    ):
+        """Log when continuity text is injected into the platform UI."""
+        with self._lock:
+            event = InteractionEvent(
+                event_id=self._generate_event_id(),
+                event_type="injection_delivery",
+                platform_id=platform_id,
+                enriched_text=enriched_text,
+                tokens_added=tokens_added,
+                thread_id=thread_id,
+                context_sources=context_sources or [],
+                success=success,
+                detail=detail or None,
             )
             self._record_event(event)
     
