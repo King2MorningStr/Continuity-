@@ -99,6 +99,19 @@ class TestContinuityEngine(unittest.TestCase):
         # They should be in separate containers
         self.assertIn("chatgpt", self.engine.platform_threads)
         self.assertIn("claude", self.engine.platform_threads)
+
+    def test_user_turn_recorded_when_disabled(self):
+        """User turns should be tracked even if enrichment is disabled."""
+        self.engine.update_settings(continuity_enabled=False)
+
+        self.engine.enrich_input("chatgpt", "User asks about travel plans")
+
+        thread_id = self.engine.active_thread_ids.get("chatgpt")
+        thread = self.engine.get_or_create_thread("chatgpt", thread_id)
+
+        self.assertEqual(len(thread.turns), 1)
+        self.assertEqual(thread.turns[0].role, "user")
+        self.assertIn("travel", thread.turns[0].content)
     
     def test_update_settings(self):
         """Test updating settings."""
@@ -109,6 +122,17 @@ class TestContinuityEngine(unittest.TestCase):
         
         self.assertEqual(self.engine.settings.injection_strength, 8)
         self.assertFalse(self.engine.settings.continuity_enabled)
+
+    def test_record_user_input_helper_tracks_topics(self):
+        """Direct user recording should populate threads and topics."""
+        self.engine.record_user_input("claude", "Discussing machine learning models")
+
+        thread_id = self.engine.active_thread_ids.get("claude")
+        thread = self.engine.get_or_create_thread("claude", thread_id)
+
+        self.assertEqual(len(thread.turns), 1)
+        self.assertEqual(thread.turns[0].role, "user")
+        self.assertIn("machine", self.engine.user_profile["topics_of_interest"])
     
     def test_get_stats(self):
         """Test getting stats."""

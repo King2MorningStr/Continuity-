@@ -123,6 +123,13 @@ class SessionManager:
         This is "ground truth" of what actually got sent.
         """
         with self._lock:
+            # Make sure a session/thread exists for this platform and attach
+            # the user message so continuity history matches the real chat.
+            session = self.active_sessions.get(platform_id)
+            if session is None:
+                session = self.start_session(platform_id)
+
+            self._get_engine().record_user_input(platform_id, text, session.thread_id)
             self._get_logger().log_platform_user_echo(platform_id, text)
     
     def on_platform_ai_message(self, platform_id: str, text: str):
@@ -131,8 +138,10 @@ class SessionManager:
         """
         with self._lock:
             session = self.active_sessions.get(platform_id)
+            if session is None:
+                session = self.start_session(platform_id)
             thread_id = session.thread_id if session else None
-            
+
             # Log it
             self._get_logger().log_ai_output(platform_id, text, thread_id)
 
